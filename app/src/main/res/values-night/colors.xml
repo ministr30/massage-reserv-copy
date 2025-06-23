@@ -1,0 +1,10 @@
+<resources>
+    <color name="summary_background_color">#1E1E1E</color> <!-- или другой тёмно-серый -->
+    <color name="blue_500">#2196F3</color> <!-- дублируем нужные -->
+    <color name="blue_700">#1976D2</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+
+    <color name="booked_slot_background_color">#FF880000</color>
+
+</resources>

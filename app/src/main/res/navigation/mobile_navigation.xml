@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@id/navigation_home">
+
+    <fragment
+        android:id="@+id/navigation_home"
+        android:name="com.massagepro.ui.home.HomeFragment"
+        android:label="@string/title_home"
+        tools:layout="@layout/fragment_home">
+        <action
+            android:id="@+id/action_navigation_home_to_addEditAppointmentFragment"
+            app:destination="@id/addEditAppointmentFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_clients"
+        android:name="com.massagepro.ui.clients.ClientsFragment"
+        android:label="@string/title_clients"
+        tools:layout="@layout/fragment_clients">
+        <action
+            android:id="@+id/action_navigation_clients_to_addEditClientFragment"
+            app:destination="@id/addEditClientFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_services"
+        android:name="com.massagepro.ui.services.ServicesFragment"
+        android:label="@string/title_services"
+        tools:layout="@layout/fragment_services">
+        <action
+            android:id="@+id/action_navigation_services_to_addEditServiceFragment"
+            app:destination="@id/addEditServiceFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_history"
+        android:name="com.massagepro.ui.history.HistoryFragment"
+        android:label="@string/title_history"
+        tools:layout="@layout/fragment_history">
+        <action
+            android:id="@+id/action_navigation_history_to_addEditAppointmentFragment"
+            app:destination="@id/addEditAppointmentFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_statistics"
+        android:name="com.massagepro.ui.statistics.StatisticsFragment"
+        android:label="@string/title_statistics"
+        tools:layout="@layout/fragment_statistics" />
+
+    <fragment
+        android:id="@+id/addEditClientFragment"
+        android:name="com.massagepro.ui.clients.AddEditClientFragment"
+        android:label="@string/title_add_edit_client"
+        tools:layout="@layout/fragment_add_edit_client">
+        <argument
+            android:name="clientId"
+            app:argType="integer"
+            android:defaultValue="-1" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/addEditServiceFragment"
+        android:name="com.massagepro.ui.services.AddEditServiceFragment"
+        android:label="@string/title_add_edit_service"
+        tools:layout="@layout/fragment_add_edit_service">
+        <argument
+            android:name="serviceId"
+            app:argType="integer"
+            android:defaultValue="-1" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/addEditAppointmentFragment"
+        android:name="com.massagepro.ui.appointments.AddEditAppointmentFragment"
+        android:label="@string/title_add_edit_appointment"
+        tools:layout="@layout/fragment_add_edit_appointment">
+        <argument
+            android:name="appointmentId"
+            app:argType="integer"
+            android:defaultValue="-1" />
+        <argument
+            android:name="selectedStartTime"
+            app:argType="long"
+            android:defaultValue="-1L" /> <!-- ДОБАВЛЕНО ЗДЕСЬ -->
+        <action
+            android:id="@+id/action_addEditAppointmentFragment_to_addEditClientFragment"
+            app:destination="@id/addEditClientFragment" />
+    </fragment>
+
+</navigation>
