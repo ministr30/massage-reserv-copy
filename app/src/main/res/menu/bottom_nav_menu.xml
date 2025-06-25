@@ -17,11 +17,6 @@
         android:title="@string/title_services" />
 
     <item
-        android:id="@+id/navigation_history"
-        android:icon="@drawable/ic_history_black_24dp"
-        android:title="@string/title_history" />
-
-    <item
         android:id="@+id/navigation_statistics"
         android:icon="@drawable/ic_stats_black_24dp"
         android:title="@string/title_statistics" />
