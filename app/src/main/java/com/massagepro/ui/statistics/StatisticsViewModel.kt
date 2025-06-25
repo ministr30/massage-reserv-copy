@@ -28,17 +28,16 @@ class StatisticsViewModel(private val appointmentDao: AppointmentDao, private va
 
     fun generateStatistics(startDate: Date, endDate: Date) {
         viewModelScope.launch {
-            val appointments = appointmentDao.getAppointmentsForDateRange(startDate, endDate).first()
+            // ИСПРАВЛЕНО: Передаем time (Long) вместо Date
+            val appointments = appointmentDao.getAppointmentsForDateRange(startDate.time, endDate.time).first()
 
             _totalAppointments.value = appointments.size
             _totalRevenue.value = appointments.sumOf { it.totalCost }
 
-            // Most popular service
             val serviceCounts = appointments.groupBy { it.serviceId }.mapValues { it.value.size }
             val mostPopularServiceId = serviceCounts.maxByOrNull { it.value }?.key
             _mostPopularService.value = mostPopularServiceId?.let { serviceDao.getServiceById(it)?.name } ?: "Нет данных"
 
-            // Most active client
             val clientCounts = appointments.groupBy { it.clientId }.mapValues { it.value.size }
             val mostActiveClientId = clientCounts.maxByOrNull { it.value }?.key
             _mostActiveClient.value = mostActiveClientId?.let { clientDao.getClientById(it)?.name } ?: "Нет данных"
@@ -55,5 +54,3 @@ class StatisticsViewModelFactory(private val appointmentDao: AppointmentDao, pri
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
-
-

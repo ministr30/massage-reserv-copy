@@ -18,11 +18,13 @@ class AppointmentViewModel(
     private val serviceDao: ServiceDao
 ) : ViewModel() {
 
-    // Эти свойства остаются без изменений
+    // getAllAppointments() в AppointmentDao возвращает Flow. Его нужно преобразовать в LiveData.
     val allAppointments: LiveData<List<Appointment>> = appointmentDao.getAllAppointments().asLiveData()
     val allClients: LiveData<List<Client>> = clientDao.getAllClients().asLiveData()
     val allServices: LiveData<List<Service>> = serviceDao.getAllServices().asLiveData()
 
+    // Методы insert/update/delete в AppointmentDao являются suspend функциями,
+    // поэтому их нужно вызывать из корутины, например, в viewModelScope.launch.
     fun insertAppointment(appointment: Appointment) = viewModelScope.launch {
         appointmentDao.insertAppointment(appointment)
     }
@@ -35,18 +37,19 @@ class AppointmentViewModel(
         appointmentDao.deleteAppointment(appointment)
     }
 
+    // getAppointmentById в AppointmentDao является suspend функцией и возвращает Appointment?.
+    // ViewModel может напрямую вызывать его, т.к. сам метод ViewModel также suspend.
     suspend fun getAppointmentById(appointmentId: Int): Appointment? {
         return appointmentDao.getAppointmentById(appointmentId)
     }
 
-    /**
-     * ИСПРАВЛЕНО: Метод теперь корректно преобразует Date в Long перед запросом к DAO.
-     * Это предотвратит ошибку несоответствия типов.
-     */
+    // getConflictingAppointments в AppointmentDao является suspend функцией.
+    // ViewModel также должен быть suspend и передавать миллисекунды.
     suspend fun getConflictingAppointments(startTime: Date, endTime: Date, excludeAppointmentId: Int): List<Appointment> {
         return appointmentDao.getConflictingAppointments(startTime.time, endTime.time, excludeAppointmentId)
     }
 
+    // getClientById и getServiceById в DAO являются suspend функциями.
     suspend fun getClientById(clientId: Int): Client? {
         return clientDao.getClientById(clientId)
     }
@@ -55,21 +58,8 @@ class AppointmentViewModel(
         return serviceDao.getServiceById(serviceId)
     }
 
-}
-
-/**
- * Фабрика необходима для создания экземпляра ViewModel с передачей DAO в конструктор.
- */
-class AppointmentViewModelFactory(
-    private val appointmentDao: AppointmentDao,
-    private val clientDao: ClientDao,
-    private val serviceDao: ServiceDao
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(AppointmentViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return AppointmentViewModel(appointmentDao, clientDao, serviceDao) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
+    // Этот метод уже был корректен, т.к. AppointmentDao.getAppointmentsForDateRange возвращает Flow.
+    fun getAppointmentsForDateRange(startMillis: Long, endMillis: Long): Flow<List<Appointment>> {
+        return appointmentDao.getAppointmentsForDateRange(startMillis, endMillis)
     }
 }

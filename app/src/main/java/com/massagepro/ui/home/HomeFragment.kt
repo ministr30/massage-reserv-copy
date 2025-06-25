@@ -49,17 +49,16 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Применяем отступы к корневому представлению фрагмента
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
 
-                binding.headerLayout.setPadding(
+            binding.headerLayout.setPadding(
                 binding.headerLayout.paddingLeft,
                 binding.headerLayout.paddingTop + systemBars.top,
                 binding.headerLayout.paddingRight,
                 binding.headerLayout.paddingBottom
             )
-            insets // Потребляем инсеты, чтобы они не распространялись дальше на другие представления в этом фрагменте
+            insets
         }
 
         setupRecyclerView()
@@ -70,15 +69,13 @@ class HomeFragment : Fragment() {
     private fun setupRecyclerView() {
         timeSlotAdapter = TimeSlotAdapter(
             onBookClick = { timeSlot ->
-                // Handle booking a time slot (for unbooked slots)
                 val action = HomeFragmentDirections.actionNavigationHomeToAddEditAppointmentFragment(
-                    appointmentId = -1, // For a new appointment, ID is -1
-                    selectedStartTime = timeSlot.startTime.timeInMillis // Pass the selected time
+                    appointmentId = -1,
+                    selectedStartTime = timeSlot.startTime.timeInMillis
                 )
                 findNavController().navigate(action)
             },
             onBookedSlotClick = { appointment ->
-                // Handle clicking on a booked slot (for editing/deleting)
                 showAppointmentActionsDialog(appointment)
             }
         )
@@ -112,15 +109,17 @@ class HomeFragment : Fragment() {
             updateUIForSelectedDate()
         }, year, month, day).show()
     }
+
     private fun updateUIForSelectedDate() {
         val dateFormat = SimpleDateFormat("EEEE, dd MMMM", Locale("uk", "UA"))
         binding.textViewSelectedDate.text = dateFormat.format(selectedDate.time)
 
         lifecycleScope.launch {
-            val startOfDay = Calendar.getInstance().apply { time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.time
-            val endOfDay = Calendar.getInstance().apply { time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999) }.time
+            val startOfDay = Calendar.getInstance().apply { time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
+            val endOfDay = Calendar.getInstance().apply { time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999) }
 
-            val appointmentsForDay = appointmentViewModel.getAppointmentsForDateRange(startOfDay, endOfDay).first()
+            // ИСПРАВЛЕНО: Теперь передаем timeInMillis (Long)
+            val appointmentsForDay = appointmentViewModel.getAppointmentsForDateRange(startOfDay.timeInMillis, endOfDay.timeInMillis).first()
             val totalRevenue = appointmentsForDay.sumOf { it.totalCost }
 
             binding.textViewAppointmentsCount.text = "${getString(R.string.appointments_count_prefix)} ${appointmentsForDay.size}"
@@ -148,16 +147,14 @@ class HomeFragment : Fragment() {
             var service: Service? = null
 
             for (appointment in appointments) {
-                // Check for overlap between time slot and appointment
                 if (slotStartTime.time.before(appointment.endTime) && slotEndTime.time.after(appointment.startTime)) {
                     isBooked = true
                     bookedAppointment = appointment
-                    // Fetch client and service details asynchronously
                     val clientDeferred = lifecycleScope.async { appointmentViewModel.getClientById(appointment.clientId) }
                     val serviceDeferred = lifecycleScope.async { appointmentViewModel.getServiceById(appointment.serviceId) }
                     client = clientDeferred.await()
                     service = serviceDeferred.await()
-                    break // Found an overlapping appointment, no need to check others for this slot
+                    break
                 }
             }
             slots.add(TimeSlot(slotStartTime, slotEndTime, isBooked, bookedAppointment, client, service))
@@ -171,14 +168,14 @@ class HomeFragment : Fragment() {
             .setTitle(getString(R.string.action_dialog_title))
             .setItems(options) { dialog, which ->
                 when (which) {
-                    0 -> { // Edit
+                    0 -> {
                         val action = HomeFragmentDirections.actionNavigationHomeToAddEditAppointmentFragment(
                             appointmentId = appointment.id,
                             selectedStartTime = appointment.startTime.time
                         )
                         findNavController().navigate(action)
                     }
-                    1 -> { // Delete
+                    1 -> {
                         showDeleteConfirmationDialog(appointment)
                     }
                 }
@@ -194,7 +191,7 @@ class HomeFragment : Fragment() {
             .setPositiveButton(getString(R.string.dialog_yes)) { dialog, _ ->
                 lifecycleScope.launch {
                     appointmentViewModel.deleteAppointment(appointment)
-                    updateUIForSelectedDate() // Refresh the list after deletion
+                    updateUIForSelectedDate()
                 }
                 dialog.dismiss()
             }
@@ -206,7 +203,6 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Refresh data when returning to the fragment (e.g., after adding/editing an appointment)
         updateUIForSelectedDate()
     }
 
