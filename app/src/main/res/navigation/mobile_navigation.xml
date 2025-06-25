@@ -36,16 +36,6 @@
     </fragment>
 
     <fragment
-        android:id="@+id/navigation_history"
-        android:name="com.massagepro.ui.history.HistoryFragment"
-        android:label="@string/title_history"
-        tools:layout="@layout/fragment_history">
-        <action
-            android:id="@+id/action_navigation_history_to_addEditAppointmentFragment"
-            app:destination="@id/addEditAppointmentFragment" />
-    </fragment>
-
-    <fragment
         android:id="@+id/navigation_statistics"
         android:name="com.massagepro.ui.statistics.StatisticsFragment"
         android:label="@string/title_statistics"

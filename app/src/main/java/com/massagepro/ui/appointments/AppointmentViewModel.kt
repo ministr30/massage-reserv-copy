@@ -55,47 +55,6 @@ class AppointmentViewModel(
         return serviceDao.getServiceById(serviceId)
     }
 
-    /**
-     * Этот метод уже был корректен в вашем коде. Он остается без изменений.
-     * Он использует вспомогательные функции для нормализации дат и правильно передает Long в DAO.
-     */
-    fun getFilteredAppointments(startDate: Date, endDate: Date, clientId: Int?, status: String): Flow<List<Appointment>> {
-        val safeStart = normalizeStartOfDay(startDate).time
-        val safeEnd = normalizeEndOfDay(endDate).time
-
-        println("🔍 Фильтр по дате: с $safeStart по $safeEnd")
-
-        return appointmentDao.getAppointmentsForDateRange(safeStart, safeEnd).map { appointments ->
-            println("📋 Получено записей из БД: ${appointments.size}")
-            appointments.filter { appointment ->
-                val matchesClient = clientId == null || appointment.clientId == clientId
-                val matchesStatus = status == "Все" || appointment.status == status
-                matchesClient && matchesStatus
-            }.also {
-                println("✅ После фильтров (клиент + статус): ${it.size}")
-            }
-        }
-    }
-
-    private fun normalizeStartOfDay(date: Date): Date {
-        return Calendar.getInstance().apply {
-            time = date
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }.time
-    }
-
-    private fun normalizeEndOfDay(date: Date): Date {
-        return Calendar.getInstance().apply {
-            time = date
-            set(Calendar.HOUR_OF_DAY, 23)
-            set(Calendar.MINUTE, 59)
-            set(Calendar.SECOND, 59)
-            set(Calendar.MILLISECOND, 999)
-        }.time
-    }
 }
 
 /**

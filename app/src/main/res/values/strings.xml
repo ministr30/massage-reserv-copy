@@ -3,7 +3,6 @@
     <string name="title_home">Головна</string>
     <string name="title_clients">Клієнти</string>
     <string name="title_services">Послуги</string>
-    <string name="title_history">Історія</string>
     <string name="title_statistics">Статистика</string>
     <string name="title_add_edit_client">Додати/Редагувати клієнта</string>
     <string name="title_add_edit_service">Додати/Редагувати послугу</string>
