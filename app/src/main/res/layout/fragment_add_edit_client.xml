@@ -5,6 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="16dp"
+    android:fitsSystemWindows="true"
     tools:context=".ui.clients.AddEditClientFragment">
 
     <com.google.android.material.textfield.TextInputLayout
@@ -30,59 +31,58 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:hint="Телефон (наприклад, 0961234567)"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toBottomOf="@+id/text_input_client_name">
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/text_input_client_name">
 
-    <com.google.android.material.textfield.TextInputEditText
-        android:id="@+id/edit_text_client_phone"
-        android:layout_width="match_parent"
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/edit_text_client_phone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="phone" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <Button
+        android:id="@+id/button_import_contact"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:inputType="phone" />
+        android:layout_marginTop="8dp"
+        android:text="Импорт из контактов"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/text_input_client_phone" />
 
-</com.google.android.material.textfield.TextInputLayout>
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/text_input_client_notes"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:hint="Заметки"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/button_import_contact">
 
-    <!-- НОВАЯ КНОПКА: Импорт из контактов -->
-<Button
-android:id="@+id/button_import_contact"
-android:layout_width="0dp"
-android:layout_height="wrap_content"
-android:layout_marginTop="8dp"
-android:text="Импорт из контактов"
-app:layout_constraintEnd_toEndOf="parent"
-app:layout_constraintStart_toStartOf="parent"
-app:layout_constraintTop_toBottomOf="@+id/text_input_client_phone" />
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/edit_text_client_notes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="top"
+            android:inputType="textMultiLine"
+            android:lines="4"
+            android:scrollbarFadeDuration="250" />
 
-<com.google.android.material.textfield.TextInputLayout
-android:id="@+id/text_input_client_notes"
-android:layout_width="0dp"
-android:layout_height="wrap_content"
-android:layout_marginTop="16dp"
-android:hint="Заметки"
-app:layout_constraintEnd_toEndOf="parent"
-app:layout_constraintStart_toStartOf="parent"
-app:layout_constraintTop_toBottomOf="@+id/button_import_contact">
+    </com.google.android.material.textfield.TextInputLayout>
 
-<com.google.android.material.textfield.TextInputEditText
-    android:id="@+id/edit_text_client_notes"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:gravity="top"
-    android:inputType="textMultiLine"
-    android:lines="4"
-    android:scrollbarFadeDuration="250" />
+    <Button
+        android:id="@+id/button_save_client"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Сохранить клиента"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/text_input_client_notes" />
 
-</com.google.android.material.textfield.TextInputLayout>
-
-<Button
-android:id="@+id/button_save_client"
-android:layout_width="0dp"
-android:layout_height="wrap_content"
-android:layout_marginTop="24dp"
-    android:text="Сохранить клиента"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintHorizontal_bias="0.0"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toBottomOf="@+id/text_input_client_notes" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

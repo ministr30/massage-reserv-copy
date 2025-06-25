@@ -7,16 +7,18 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.massagepro.App
+import com.massagepro.R
 import com.massagepro.data.model.Service
 import com.massagepro.databinding.FragmentServicesBinding
 import kotlinx.coroutines.launch
-import com.massagepro.R // ДОБАВЛЕН ИМПОРТ R
 
 class ServicesFragment : Fragment() {
 
@@ -36,6 +38,13 @@ class ServicesFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        // Применяем отступы к корневому представлению
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(v.paddingLeft, systemBars.top, v.paddingRight, v.paddingBottom)
+            insets
+        }
 
         setupRecyclerView()
         setupSearch()
@@ -91,16 +100,16 @@ class ServicesFragment : Fragment() {
 
     private fun showDeleteConfirmationDialog(service: Service) {
         AlertDialog.Builder(requireContext())
-            .setTitle(getString(R.string.delete_service_dialog_title)) // ИЗМЕНЕНО ЗДЕСЬ
-            .setMessage(getString(R.string.delete_service_dialog_message, service.name)) // ИЗМЕНЕНО ЗДЕСЬ
-            .setPositiveButton(getString(R.string.delete_button_text)) { // ИЗМЕНЕНО ЗДЕСЬ
+            .setTitle(getString(R.string.delete_service_dialog_title))
+            .setMessage(getString(R.string.delete_service_dialog_message, service.name))
+            .setPositiveButton(getString(R.string.delete_button_text)) {
                     dialog, _ ->
                 lifecycleScope.launch {
                     viewModel.deleteService(service)
                 }
                 dialog.dismiss()
             }
-            .setNegativeButton(getString(R.string.cancel_button_text)) { dialog, _ -> // ИЗМЕНЕНО ЗДЕСЬ
+            .setNegativeButton(getString(R.string.cancel_button_text)) { dialog, _ ->
                 dialog.dismiss()
             }
             .show()

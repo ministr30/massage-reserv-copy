@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- 1. Изменение основной темы для ночного режима -->
+    <!-- ИСПРАВЛЕНИЕ: Добавлена родительская тема, чтобы не нарушать наследование -->
+    <style name="Theme.MassagePRO" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Иконки статус-бара будут светлыми -->
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+
+    <!-- 2. Тема для заставки (ночной режим) -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <!-- Цвет фона для темной темы -->
+        <item name="windowSplashScreenBackground">@color/summary_background_color</item>
+        <!-- Иконка заставки (ваше изображение) -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_logo</item>
+        <!-- Тема, которая будет применена после заставки -->
+        <item name="postSplashScreenTheme">@style/Theme.MassagePRO</item>
+    </style>
+</resources>

@@ -2,7 +2,6 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.READ_CONTACTS" />
 
-
     <application
         android:name=".App"
         android:allowBackup="true"
@@ -17,7 +16,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.MassagePRO">
+            android:theme="@style/Theme.App.Starting"> <!-- ИЗМЕНЕНИЕ ЗДЕСЬ -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -27,4 +26,3 @@
     </application>
 
 </manifest>
-

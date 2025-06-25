@@ -1,23 +1,36 @@
 package com.massagepro.ui.statistics
 
+import android.app.AlertDialog
 import android.app.DatePickerDialog
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.massagepro.App
+import com.massagepro.R
 import com.massagepro.databinding.FragmentStatisticsBinding
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
+import kotlin.system.exitProcess
 
 class StatisticsFragment : Fragment() {
 
@@ -27,6 +40,27 @@ class StatisticsFragment : Fragment() {
 
     private var startDate: Calendar = Calendar.getInstance().apply { add(Calendar.MONTH, -1); set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
     private var endDate: Calendar = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999) }
+
+    private lateinit var backupLauncher: ActivityResultLauncher<String>
+    private lateinit var restoreLauncher: ActivityResultLauncher<Array<String>>
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        backupLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/x-sqlite3")) { uri: Uri? ->
+            uri?.let {
+                lifecycleScope.launch(Dispatchers.IO) {
+                    backupDatabase(it)
+                }
+            }
+        }
+
+        restoreLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            uri?.let {
+                showRestoreConfirmationDialog(it)
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -40,15 +74,121 @@ class StatisticsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(v.paddingLeft, systemBars.top, v.paddingRight, v.paddingBottom)
+            insets
+        }
+
         setupDatePickers()
-        setupExportButton()
+        setupActionButtons()
         observeViewModel()
         generateStatistics()
     }
 
+    private fun setupActionButtons() {
+        binding.backupButton.setOnClickListener {
+            // **ИЗМЕНЕНИЕ**: Возвращаем создание уникального имени файла с датой и временем
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val fileName = "MassagePRO_backup_$timeStamp.db"
+            backupLauncher.launch(fileName)
+        }
+        binding.restoreButton.setOnClickListener {
+            restoreLauncher.launch(arrayOf("*/*"))
+        }
+    }
+
+    private suspend fun backupDatabase(destinationUri: Uri) {
+        val app = requireActivity().application as App
+        val database = app.database
+        val dbFile = requireContext().getDatabasePath(database.openHelper.databaseName)
+
+        try {
+            if (database.isOpen) {
+                database.query("PRAGMA wal_checkpoint(FULL);", emptyArray()).use {
+                    it.moveToFirst()
+                }
+            }
+
+            requireContext().contentResolver.openOutputStream(destinationUri)?.use { outputStream ->
+                FileInputStream(dbFile).use { inputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            }
+            withContext(Dispatchers.Main) {
+                Toast.makeText(requireContext(), getString(R.string.backup_success), Toast.LENGTH_LONG).show()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            withContext(Dispatchers.Main) {
+                val errorMessage = e.message ?: "Невідома помилка"
+                Toast.makeText(requireContext(), getString(R.string.backup_error, errorMessage), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun showRestoreConfirmationDialog(backupUri: Uri) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.restore_confirmation_title))
+            .setMessage(getString(R.string.restore_confirmation_message))
+            .setPositiveButton(getString(R.string.restore_action_confirm)) { _, _ ->
+                lifecycleScope.launch(Dispatchers.IO) {
+                    restoreDatabase(backupUri)
+                }
+            }
+            .setNegativeButton(getString(R.string.cancel_button_text), null)
+            .show()
+    }
+
+    private suspend fun restoreDatabase(backupUri: Uri) {
+        val app = requireActivity().application as App
+        val dbPath = requireContext().getDatabasePath(app.database.openHelper.databaseName).absolutePath
+        val dbFile = File(dbPath)
+
+        val walFile = File("$dbPath-wal")
+        val shmFile = File("$dbPath-shm")
+
+        if (app.database.isOpen) {
+            app.database.close()
+        }
+
+        if (walFile.exists()) {
+            walFile.delete()
+        }
+        if (shmFile.exists()) {
+            shmFile.delete()
+        }
+
+        try {
+            requireContext().contentResolver.openInputStream(backupUri)?.use { inputStream ->
+                FileOutputStream(dbFile).use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            }
+            withContext(Dispatchers.Main) {
+                Toast.makeText(requireContext(), getString(R.string.restore_success), Toast.LENGTH_LONG).show()
+                restartApp()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            withContext(Dispatchers.Main) {
+                Toast.makeText(requireContext(), getString(R.string.restore_error, e.message), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun restartApp() {
+        val context = requireActivity().applicationContext
+        val packageManager = context.packageManager
+        val intent = packageManager.getLaunchIntentForPackage(context.packageName)
+        val componentName = intent!!.component
+        val mainIntent = Intent.makeRestartActivityTask(componentName)
+        context.startActivity(mainIntent)
+        exitProcess(0)
+    }
+
     private fun setupDatePickers() {
         updateDateDisplay()
-
         binding.buttonSelectStartDateStats.setOnClickListener { showDatePicker(true) }
         binding.buttonSelectEndDateStats.setOnClickListener { showDatePicker(false) }
     }
@@ -76,10 +216,6 @@ class StatisticsFragment : Fragment() {
         binding.buttonSelectEndDateStats.text = dateFormat.format(endDate.time)
     }
 
-    private fun setupExportButton() {
-        binding.buttonExportData.setOnClickListener { exportDatabase() }
-    }
-
     private fun observeViewModel() {
         viewModel.totalAppointments.observe(viewLifecycleOwner) {
             binding.textViewTotalAppointments.text = "Всего записей: $it"
@@ -99,39 +235,8 @@ class StatisticsFragment : Fragment() {
         viewModel.generateStatistics(startDate.time, endDate.time)
     }
 
-    private fun exportDatabase() {
-        lifecycleScope.launch {
-            try {
-                val dbPath = requireContext().getDatabasePath("massagepro_database").absolutePath
-                val dbFile = File(dbPath)
-
-                if (dbFile.exists()) {
-                    val exportDir = File(requireContext().getExternalFilesDir(null), "MassagePRO_Export")
-                    if (!exportDir.exists()) {
-                        exportDir.mkdirs()
-                    }
-                    val exportFile = File(exportDir, "massagepro_database_backup_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Calendar.getInstance().time)}.db")
-
-                    FileInputStream(dbFile).use { fis ->
-                        FileOutputStream(exportFile).use { fos ->
-                            fis.channel.transferTo(0, fis.channel.size(), fos.channel)
-                        }
-                    }
-                    Toast.makeText(requireContext(), "База данных экспортирована в ${exportFile.absolutePath}", Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(requireContext(), "Файл базы данных не найден", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Ошибка экспорта: ${e.message}", Toast.LENGTH_LONG).show()
-                e.printStackTrace()
-            }
-        }
-    }
-
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
 }
-
-

@@ -11,5 +11,7 @@
     <!-- Custom colors for MassagePRO -->
     <color name="blue_500">#2196F3</color>
     <color name="blue_700">#1976D2</color>
-</resources>
 
+    <!-- ИСПРАВЛЕНИЕ: Добавлен цвет для занятых слотов в светлой теме -->
+    <color name="booked_slot_background_color">#FFCDD2</color> <!-- Светло-красный для занятого слота -->
+</resources>

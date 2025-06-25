@@ -6,6 +6,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -25,15 +27,15 @@ class AddEditServiceFragment : Fragment() {
     private val args: AddEditServiceFragmentArgs by navArgs()
 
     private val predefinedCategories = listOf(
-        "Классический",
-        "Антицеллюлитный",
-        "Спортивный",
-        "Расслабляющий",
-        "Лечебный",
-        "Аппаратный",
-        "Детский",
-        "Массаж лица",
-        "Другое"
+        "Класичний",
+        "Антицелюлітний",
+        "Спортивний",
+        "Розслабляючий",
+        "Лікувальний",
+        "Апаратний",
+        "Дитячий",
+        "Масаж обличчя",
+        "Інше" // Заменено на "Інше"
     )
 
     override fun onCreateView(
@@ -47,6 +49,14 @@ class AddEditServiceFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        // Применяем отступы к корневому представлению
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            // Устанавливаем padding, сохраняя оригинальные боковые и нижний отступы, заданные в XML
+            v.setPadding(v.paddingLeft, systemBars.top + v.paddingTop, v.paddingRight, v.paddingBottom)
+            insets
+        }
 
         setupCategorySpinner()
 
@@ -63,7 +73,7 @@ class AddEditServiceFragment : Fragment() {
                         binding.autoCompleteServiceCategory.setText(category, false)
                         binding.textInputCustomCategory.visibility = View.GONE
                     } else if (category != null) {
-                        binding.autoCompleteServiceCategory.setText("Другое", false)
+                        binding.autoCompleteServiceCategory.setText("Інше", false) // Заменено на "Інше"
                         binding.textInputCustomCategory.visibility = View.VISIBLE
                         binding.editTextCustomCategory.setText(category)
                     } else {
@@ -84,7 +94,7 @@ class AddEditServiceFragment : Fragment() {
 
         binding.autoCompleteServiceCategory.setOnItemClickListener { parent, view, position, id ->
             val selectedCategory = parent.getItemAtPosition(position).toString()
-            if (selectedCategory == "Другое") {
+            if (selectedCategory == "Інше") { // Заменено на "Інше"
                 binding.textInputCustomCategory.visibility = View.VISIBLE
                 binding.editTextCustomCategory.setText("")
                 binding.editTextCustomCategory.requestFocus()
@@ -102,7 +112,7 @@ class AddEditServiceFragment : Fragment() {
 
         var category = binding.autoCompleteServiceCategory.text.toString().trim()
 
-        if (category == "Другое") {
+        if (category == "Інше") { // Заменено на "Інше"
             category = binding.editTextCustomCategory.text.toString().trim()
             if (category.isEmpty()) {
                 binding.textInputCustomCategory.error = getString(R.string.service_category_empty_error)
@@ -135,7 +145,8 @@ class AddEditServiceFragment : Fragment() {
         val duration = durationString.toIntOrNull()
 
         if (price == null || duration == null) {
-            Toast.makeText(requireContext(), "Некоректні дані для ціни або тривалості", Toast.LENGTH_SHORT).show()
+            // Заменено на использование строки из ресурсов
+            Toast.makeText(requireContext(), getString(R.string.service_invalid_data_toast), Toast.LENGTH_SHORT).show()
             return
         }
 
