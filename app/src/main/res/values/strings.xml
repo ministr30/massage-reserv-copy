@@ -97,7 +97,7 @@
 
     <string name="client_name_empty_error">Ім\'я не може бути порожнім</string>
     <string name="phone_format_error_flexible">Некоректний формат телефону (наприклад, 0961234567)</string>
-
+    <string name="category_not_found_message">Категория \"%s\" не найдена в предопределенных. Поле категории было сброшено.</string>
     <string name="client_added_toast">Клієнт доданий</string>
     <string name="client_updated_toast">Клієнт оновлений</string>
     <string name="client_deleted_toast">Клієнта %s видалено.</string>

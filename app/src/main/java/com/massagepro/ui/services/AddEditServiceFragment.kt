@@ -23,21 +23,23 @@ class AddEditServiceFragment : Fragment() {
     private lateinit var editTextServicePrice: EditText
     private lateinit var editTextServiceDuration: EditText
     private lateinit var autoCompleteServiceCategory: AutoCompleteTextView
-    private lateinit var editTextCustomCategory: EditText
-    private lateinit var textInputCustomCategory: View
+    // private lateinit var editTextCustomCategory: EditText
+    // private lateinit var textInputCustomCategory: View
     private lateinit var switchServiceActive: SwitchMaterial
     private lateinit var buttonSaveService: Button
 
+    // Обновлено: Категории "Обгортання" и "Ендосфера" добавлены в список
     private val predefinedCategories = listOf(
         "Класичний",
         "Антицелюлітний",
         "Спортивний",
-        "Розслабляючий",
         "Лікувальний",
         "Апаратний",
+        "Обгортання",
+        "Ендосфера",
         "Дитячий",
         "Масаж обличчя",
-        "Інше"
+        "Розслабляючий"
     )
 
     private val viewModel: ServicesViewModel by viewModels {
@@ -56,8 +58,8 @@ class AddEditServiceFragment : Fragment() {
         editTextServicePrice = view.findViewById(R.id.edit_text_service_price)
         editTextServiceDuration = view.findViewById(R.id.edit_text_service_duration)
         autoCompleteServiceCategory = view.findViewById(R.id.autoCompleteServiceCategory)
-        editTextCustomCategory = view.findViewById(R.id.edit_text_custom_category)
-        textInputCustomCategory = view.findViewById(R.id.text_input_custom_category)
+        // editTextCustomCategory = view.findViewById(R.id.edit_text_custom_category)
+        // textInputCustomCategory = view.findViewById(R.id.text_input_custom_category)
         switchServiceActive = view.findViewById(R.id.switch_service_active)
         buttonSaveService = view.findViewById(R.id.button_save_service)
         return view
@@ -69,16 +71,7 @@ class AddEditServiceFragment : Fragment() {
         val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, predefinedCategories)
         autoCompleteServiceCategory.setAdapter(adapter)
 
-        autoCompleteServiceCategory.setOnItemClickListener { parent, _, position, _ ->
-            val selected = parent.getItemAtPosition(position).toString()
-            if (selected == "Інше") {
-                textInputCustomCategory.visibility = View.VISIBLE
-                editTextCustomCategory.text.clear()
-                editTextCustomCategory.requestFocus()
-            } else {
-                textInputCustomCategory.visibility = View.GONE
-            }
-        }
+        // Логика onItemClickListener, связанная с "Інше" и textInputCustomCategory, была удалена ранее.
 
         val serviceId = args.serviceId
         if (serviceId != -1) {
@@ -88,13 +81,15 @@ class AddEditServiceFragment : Fragment() {
                     editTextServicePrice.setText(service.basePrice.toString())
                     editTextServiceDuration.setText(service.duration.toString())
                     switchServiceActive.isChecked = service.isActive
+                    // Логика для существующей услуги, если категория не из предопределенных
                     if (predefinedCategories.contains(service.category)) {
                         autoCompleteServiceCategory.setText(service.category, false)
-                        textInputCustomCategory.visibility = View.GONE
                     } else {
-                        autoCompleteServiceCategory.setText("Інше", false)
-                        textInputCustomCategory.visibility = View.VISIBLE
-                        editTextCustomCategory.setText(service.category)
+                        // Если сохраненная категория не находится в предопределенных,
+                        // это может быть старая "Інше" или неизвестная.
+                        // Можно сбросить поле или установить значение по умолчанию.
+                        autoCompleteServiceCategory.setText("", false)
+                        Toast.makeText(requireContext(), getString(R.string.category_not_found_message, service.category), Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -111,12 +106,8 @@ class AddEditServiceFragment : Fragment() {
         val durationString = editTextServiceDuration.text.toString().trim()
         val isActive = switchServiceActive.isChecked
 
-        val selectedCategory = autoCompleteServiceCategory.text.toString().trim()
-        val category = if (selectedCategory == "Інше") {
-            editTextCustomCategory.text.toString().trim()
-        } else {
-            selectedCategory
-        }
+        // Больше не проверяем на "Інше", так как этой категории нет
+        val category = autoCompleteServiceCategory.text.toString().trim()
 
         when {
             name.isEmpty() -> {
@@ -132,11 +123,8 @@ class AddEditServiceFragment : Fragment() {
                 return
             }
             category.isEmpty() -> {
-                if (selectedCategory == "Інше") {
-                    editTextCustomCategory.error = getString(R.string.service_custom_category_hint)
-                } else {
-                    autoCompleteServiceCategory.error = getString(R.string.service_category_empty_error)
-                }
+                // Удалена проверка на "Інше" для ошибки категории
+                autoCompleteServiceCategory.error = getString(R.string.service_category_empty_error)
                 return
             }
         }

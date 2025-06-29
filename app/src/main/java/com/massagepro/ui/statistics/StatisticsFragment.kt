@@ -5,7 +5,6 @@ import android.app.DatePickerDialog
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -231,7 +230,7 @@ class StatisticsFragment : Fragment() {
             binding.textViewTotalAppointments.text = "Всього записів: $it"
         }
         viewModel.totalRevenue.observe(viewLifecycleOwner) {
-            binding.textViewTotalRevenueStats.text = "Загальна виручка: %.2f грн".format(it)
+            binding.textViewTotalRevenueStats.text = "Загальна виручка: %d грн".format(it.toInt())
         }
         viewModel.mostPopularService.observe(viewLifecycleOwner) {
             binding.textViewMostPopularService.text = "Найпопулярніша послуга: $it"

@@ -35,7 +35,17 @@
           <theme>@style/Theme.MassagePRO</theme>
         </config>
       </layout>
+      <layout url="file://$PROJECT_DIR$/app/src/main/res/layout/fragment_statistics.xml">
+        <config>
+          <theme>@style/Theme.MassagePRO</theme>
+        </config>
+      </layout>
       <layout url="file://$PROJECT_DIR$/app/src/main/res/layout/item_client.xml">
+        <config>
+          <theme>@style/Theme.MassagePRO</theme>
+        </config>
+      </layout>
+      <layout url="file://$PROJECT_DIR$/app/src/main/res/navigation/mobile_navigation.xml">
         <config>
           <theme>@style/Theme.MassagePRO</theme>
         </config>
@@ -46,67 +56,14 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="589903cc-8afc-482c-a831-26f4c5387545" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/model/AppointmentWithClientAndService.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/repository/AppointmentRepository.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/repository/ClientRepository.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/repository/ServiceRepository.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/appointments/AppointmentsViewModelFactory.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/home/TimeSlot.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/src/main/res/drawable/add_symbol_svgrepo_com.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/src/main/res/drawable/bg_edittext_gray_rounded.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/src/main/res/drawable/ic_add_white_24dp.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/src/main/res/drawable/ic_calendar.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/src/main/res/drawable/ic_time.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/src/main/res/drawable/search_view_background.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/assetWizardSettings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dbnavigator.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dbnavigator.xml" afterDir="false" />
+    <list default="true" id="589903cc-8afc-482c-a831-26f4c5387545" name="Changes" comment="29.06 без ошибок. требует доработки функций">
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/navEditor.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/studiobot.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/app/build.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/App.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/App.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/AppDatabase.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/AppDatabase.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/dao/AppointmentDao.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/dao/AppointmentDao.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/dao/ClientDao.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/dao/ClientDao.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/dao/ServiceDao.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/dao/ServiceDao.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/model/Appointment.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/model/Appointment.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/model/Client.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/model/Client.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/model/Service.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/data/model/Service.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/appointments/AddEditAppointmentFragment.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/appointments/AddEditAppointmentFragment.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/appointments/AppointmentAdapter.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/appointments/AppointmentAdapter.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/appointments/AppointmentViewModel.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/appointments/AppointmentViewModelFactory.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/clients/AddEditClientFragment.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/clients/AddEditClientFragment.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/clients/ClientAdapter.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/clients/ClientAdapter.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/clients/ClientsFragment.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/clients/ClientsFragment.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/clients/ClientsViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/clients/ClientsViewModel.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/clients/ClientsViewModelFactory.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/home/HomeFragment.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/home/HomeFragment.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/home/TimeSlotAdapter.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/home/TimeSlotAdapter.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/services/AddEditServiceFragment.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/services/AddEditServiceFragment.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/services/ServiceAdapter.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/services/ServiceAdapter.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/services/ServicesFragment.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/services/ServicesFragment.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/services/ServicesViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/services/ServicesViewModel.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/services/ServicesViewModelFactory.kt" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/statistics/StatisticsFragment.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/statistics/StatisticsFragment.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/statistics/StatisticsViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/massagepro/ui/statistics/StatisticsViewModel.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/res/layout/fragment_add_edit_appointment.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/layout/fragment_add_edit_appointment.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/res/drawable/bg_edittext_gray_rounded.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/drawable/bg_edittext_gray_rounded.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/res/layout/fragment_add_edit_service.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/layout/fragment_add_edit_service.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/res/layout/fragment_clients.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/layout/fragment_clients.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/res/layout/item_appointment.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/layout/item_appointment.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/res/layout/item_time_slot.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/layout/item_time_slot.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/res/values-night/colors.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/values-night/colors.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/res/values-night/themes.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/values-night/themes.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/res/values/colors.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/values/colors.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/res/values/strings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/values/strings.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/res/values/themes.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/values/themes.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gradle.properties" beforeDir="false" afterPath="$PROJECT_DIR$/gradle.properties" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -116,7 +73,7 @@
   <component name="ClangdSettings">
     <option name="formatViaClangd" value="false" />
   </component>
-  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[DeviceId(pluginId=PhysicalDevice, isTemplate=false, identifier=serial=106b653d)]" />
+  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[DeviceId(pluginId=LocalEmulator, isTemplate=false, identifier=path=C:\Users\Vlad-AI\.android\avd\Medium_Phone.avd)]" />
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
       <ProjectState />
@@ -131,6 +88,9 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;customColor&quot;: &quot;&quot;,
@@ -240,17 +200,21 @@
     </task>
     <servers />
   </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="29.06 без ошибок. требует доработки функций" />
+    <option name="LAST_COMMIT_MESSAGE" value="29.06 без ошибок. требует доработки функций" />
+  </component>
   <component name="play_dynamic_filters_status">
     <option name="appIdToCheckInfo">
       <map>
         <entry key="com.massagepro">
           <value>
-            <CheckInfo lastCheckTimestamp="1751122196690" />
+            <CheckInfo lastCheckTimestamp="1751226358049" />
           </value>
         </entry>
         <entry key="com.massagepro.test">
           <value>
-            <CheckInfo lastCheckTimestamp="1751122196691" />
+            <CheckInfo lastCheckTimestamp="1751226358049" />
           </value>
         </entry>
       </map>
