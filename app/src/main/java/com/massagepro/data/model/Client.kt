@@ -8,7 +8,5 @@ data class Client(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String,
     val phone: String?,
-    val notes: String?
+    val notes: String = "" // Обов'язково повинно бути String = ""
 )
-
-

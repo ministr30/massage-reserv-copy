@@ -5,20 +5,24 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.massagepro.data.dao.AppointmentDao
-import com.massagepro.data.dao.ClientDao
-import com.massagepro.data.dao.ServiceDao
+import com.massagepro.data.repository.AppointmentRepository
+import com.massagepro.data.repository.ClientRepository
+import com.massagepro.data.repository.ServiceRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
 
-class StatisticsViewModel(private val appointmentDao: AppointmentDao, private val clientDao: ClientDao, private val serviceDao: ServiceDao) : ViewModel() {
+class StatisticsViewModel(
+    private val appointmentRepository: AppointmentRepository,
+    private val clientRepository: ClientRepository,
+    private val serviceRepository: ServiceRepository
+) : ViewModel() {
 
     private val _totalAppointments = MutableLiveData<Int>()
     val totalAppointments: LiveData<Int> = _totalAppointments
 
-    private val _totalRevenue = MutableLiveData<Double>()
-    val totalRevenue: LiveData<Double> = _totalRevenue
+    private val _totalRevenue = MutableLiveData<Int>()
+    val totalRevenue: LiveData<Int> = _totalRevenue
 
     private val _mostPopularService = MutableLiveData<String>()
     val mostPopularService: LiveData<String> = _mostPopularService
@@ -28,28 +32,34 @@ class StatisticsViewModel(private val appointmentDao: AppointmentDao, private va
 
     fun generateStatistics(startDate: Date, endDate: Date) {
         viewModelScope.launch {
-            // ИСПРАВЛЕНО: Передаем time (Long) вместо Date
-            val appointments = appointmentDao.getAppointmentsForDateRange(startDate.time, endDate.time).first()
+            val appointmentsWithDetails = appointmentRepository.getAppointmentsForDay(startDate.time, endDate.time).first()
 
-            _totalAppointments.value = appointments.size
-            _totalRevenue.value = appointments.sumOf { it.totalCost }
+            _totalAppointments.value = appointmentsWithDetails.size
 
-            val serviceCounts = appointments.groupBy { it.serviceId }.mapValues { it.value.size }
+            // Приводим сумму к Int, округляя вниз (если нужны другие варианты — скажи)
+            _totalRevenue.value = appointmentsWithDetails.sumOf { it.appointment.servicePrice.toInt() }
+
+            val serviceCounts = appointmentsWithDetails.groupBy { it.appointment.serviceId }.mapValues { it.value.size }
             val mostPopularServiceId = serviceCounts.maxByOrNull { it.value }?.key
-            _mostPopularService.value = mostPopularServiceId?.let { serviceDao.getServiceById(it)?.name } ?: "Нет данных"
+            _mostPopularService.value = mostPopularServiceId?.let { serviceRepository.getServiceById(it)?.name } ?: "Немає даних"
 
-            val clientCounts = appointments.groupBy { it.clientId }.mapValues { it.value.size }
+            val clientCounts = appointmentsWithDetails.groupBy { it.appointment.clientId }.mapValues { it.value.size }
             val mostActiveClientId = clientCounts.maxByOrNull { it.value }?.key
-            _mostActiveClient.value = mostActiveClientId?.let { clientDao.getClientById(it)?.name } ?: "Нет данных"
+            _mostActiveClient.value = mostActiveClientId?.let { clientRepository.getClientById(it)?.name } ?: "Немає даних"
         }
     }
 }
 
-class StatisticsViewModelFactory(private val appointmentDao: AppointmentDao, private val clientDao: ClientDao, private val serviceDao: ServiceDao) : ViewModelProvider.Factory {
+
+class StatisticsViewModelFactory(
+    private val appointmentRepository: AppointmentRepository,
+    private val clientRepository: ClientRepository,
+    private val serviceRepository: ServiceRepository
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(StatisticsViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return StatisticsViewModel(appointmentDao, clientDao, serviceDao) as T
+            return StatisticsViewModel(appointmentRepository, clientRepository, serviceRepository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

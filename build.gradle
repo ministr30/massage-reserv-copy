@@ -1,7 +1,7 @@
 buildscript {
     ext {
-        kotlin_version = '2.1.21' // Use a recent stable Kotlin version
-        gradle_version = '8.10.1' // Use a recent stable Gradle version
+        kotlin_version = '1.9.22' // Оставляем 1.9.22
+        gradle_version = '8.3.0'  // Оставляем 8.3.0
     }
     repositories {
         google()
@@ -10,8 +10,9 @@ buildscript {
     dependencies {
         classpath "com.android.tools.build:gradle:$gradle_version"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath "androidx.navigation:navigation-safe-args-gradle-plugin:2.7.7"
-        classpath "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:2.1.21-2.0.1" // ИСПРАВЛЕНО ЗДЕСЬ
+        classpath "androidx.navigation:navigation-safe-args-gradle-plugin:2.6.0"
+        // ОТКЛЮЧАЕМ KSP плагин, используем Kapt
+        // classpath "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:${kotlin_version}-1.0.17"
     }
 }
 

@@ -31,12 +31,23 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlin.system.exitProcess
+import com.massagepro.data.repository.AppointmentRepository
+import com.massagepro.data.repository.ClientRepository
+import com.massagepro.data.repository.ServiceRepository
 
 class StatisticsFragment : Fragment() {
 
     private var _binding: FragmentStatisticsBinding? = null
     private val binding get() = _binding!!
-    private val viewModel: StatisticsViewModel by viewModels { StatisticsViewModelFactory((requireActivity().application as App).database.appointmentDao(), (requireActivity().application as App).database.clientDao(), (requireActivity().application as App).database.serviceDao()) }
+    // ИСПРАВЛЕНО: Теперь ViewModelFactory инициализируется репозиториями, а не DAO
+    private val viewModel: StatisticsViewModel by viewModels {
+        val database = (requireActivity().application as App).database
+        StatisticsViewModelFactory(
+            AppointmentRepository(database.appointmentDao(), ServiceRepository(database.serviceDao())), // AppointmentRepo теперь нужен ServiceRepo
+            ClientRepository(database.clientDao()),
+            ServiceRepository(database.serviceDao())
+        )
+    }
 
     private var startDate: Calendar = Calendar.getInstance().apply { add(Calendar.MONTH, -1); set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
     private var endDate: Calendar = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999) }
@@ -88,7 +99,6 @@ class StatisticsFragment : Fragment() {
 
     private fun setupActionButtons() {
         binding.backupButton.setOnClickListener {
-            // **ИЗМЕНЕНИЕ**: Возвращаем создание уникального имени файла с датой и временем
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val fileName = "MassagePRO_backup_$timeStamp.db"
             backupLauncher.launch(fileName)
@@ -218,16 +228,16 @@ class StatisticsFragment : Fragment() {
 
     private fun observeViewModel() {
         viewModel.totalAppointments.observe(viewLifecycleOwner) {
-            binding.textViewTotalAppointments.text = "Всего записей: $it"
+            binding.textViewTotalAppointments.text = "Всього записів: $it"
         }
         viewModel.totalRevenue.observe(viewLifecycleOwner) {
-            binding.textViewTotalRevenueStats.text = "Общая выручка: %.2f грн".format(it)
+            binding.textViewTotalRevenueStats.text = "Загальна виручка: %.2f грн".format(it)
         }
         viewModel.mostPopularService.observe(viewLifecycleOwner) {
-            binding.textViewMostPopularService.text = "Самая популярная услуга: $it"
+            binding.textViewMostPopularService.text = "Найпопулярніша послуга: $it"
         }
         viewModel.mostActiveClient.observe(viewLifecycleOwner) {
-            binding.textViewMostActiveClient.text = "Самый активный клиент: $it"
+            binding.textViewMostActiveClient.text = "Найактивніший клієнт: $it"
         }
     }
 

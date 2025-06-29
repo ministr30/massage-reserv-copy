@@ -1,14 +1,10 @@
 package com.massagepro.ui.services
 
-import android.app.AlertDialog
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -16,20 +12,30 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.massagepro.App
 import com.massagepro.R
-import com.massagepro.data.model.Service
 import com.massagepro.databinding.FragmentServicesBinding
-import kotlinx.coroutines.launch
+import com.massagepro.data.repository.ServiceRepository // Додано для ServiceRepository
+import android.app.AlertDialog // Додано для AlertDialog
+import android.widget.Toast // Додано для Toast
+import com.massagepro.data.model.Service // Додано для Service
+import kotlinx.coroutines.launch // Додано для корутин
 
 class ServicesFragment : Fragment() {
 
     private var _binding: FragmentServicesBinding? = null
     private val binding get() = _binding!!
-    private val viewModel: ServicesViewModel by viewModels { ServicesViewModelFactory((requireActivity().application as App).database.serviceDao()) }
+
+    private val viewModel: ServicesViewModel by viewModels {
+        val database = (requireActivity().application as App).database
+        // ВИПРАВЛЕНО: Тепер передаємо ServiceRepository до фабрики
+        ServicesViewModelFactory(
+            ServiceRepository(database.serviceDao())
+        )
+    }
+
     private lateinit var serviceAdapter: ServiceAdapter
 
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
+        inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentServicesBinding.inflate(inflater, container, false)
@@ -39,20 +45,10 @@ class ServicesFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Применяем отступы к корневому представлению
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(v.paddingLeft, systemBars.top, v.paddingRight, v.paddingBottom)
-            insets
-        }
-
         setupRecyclerView()
-        setupSearch()
+        setupSearchView()
         setupFab()
-
-        viewModel.allServices.observe(viewLifecycleOwner) {
-            serviceAdapter.submitList(it)
-        }
+        observeServices()
     }
 
     private fun setupRecyclerView() {
@@ -75,20 +71,9 @@ class ServicesFragment : Fragment() {
         }
     }
 
-    private fun setupSearch() {
-        binding.editTextSearchServices.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                // Implement search logic if needed, currently not in spec for services
-                // For now, just refresh the list
-                viewModel.allServices.observe(viewLifecycleOwner) {
-                    serviceAdapter.submitList(it)
-                }
-            }
-
-            override fun afterTextChanged(s: Editable?) {}
-        })
+    private fun setupSearchView() {
+        // Логика поиска, если есть SearchView в макете fragment_services.xml
+        // binding.searchViewServices.setOnQueryTextListener(...)
     }
 
     private fun setupFab() {
@@ -98,18 +83,24 @@ class ServicesFragment : Fragment() {
         }
     }
 
+    private fun observeServices() {
+        viewModel.allServices.observe(viewLifecycleOwner) { services ->
+            serviceAdapter.submitList(services)
+        }
+    }
+
     private fun showDeleteConfirmationDialog(service: Service) {
         AlertDialog.Builder(requireContext())
             .setTitle(getString(R.string.delete_service_dialog_title))
-            .setMessage(getString(R.string.delete_service_dialog_message, service.name))
-            .setPositiveButton(getString(R.string.delete_button_text)) {
-                    dialog, _ ->
+            .setMessage(getString(R.string.delete_service_dialog_message, service.name)) // %1$s
+            .setPositiveButton(getString(R.string.dialog_yes)) { dialog, _ ->
                 lifecycleScope.launch {
                     viewModel.deleteService(service)
+                    Toast.makeText(requireContext(), getString(R.string.service_deleted_toast, service.name), Toast.LENGTH_SHORT).show()
                 }
                 dialog.dismiss()
             }
-            .setNegativeButton(getString(R.string.cancel_button_text)) { dialog, _ ->
+            .setNegativeButton(getString(R.string.dialog_no)) { dialog, _ ->
                 dialog.dismiss()
             }
             .show()

@@ -6,29 +6,60 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
-import com.massagepro.data.dao.ServiceDao
+import com.massagepro.data.repository.ServiceRepository
 import com.massagepro.data.model.Service
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
+import androidx.lifecycle.asFlow
 
-class ServicesViewModel(private val serviceDao: ServiceDao) : ViewModel() {
+class ServicesViewModel(private val serviceRepository: ServiceRepository) : ViewModel() {
 
-    val allServices: LiveData<List<Service>> = serviceDao.getAllServices().asLiveData()
+    private val _selectedCategory = MutableLiveData<String?>(null)
+    val selectedCategory: LiveData<String?> = _selectedCategory
+
+    val allCategories: LiveData<List<String>> = serviceRepository.getAllCategories().asLiveData()
+
+    val allServices: LiveData<List<Service>> = combine(
+        serviceRepository.getAllServices(),
+        _selectedCategory.asFlow()
+    ) { services, selectedCategory ->
+        if (selectedCategory.isNullOrEmpty()) {
+            services
+        } else {
+            services.filter { it.category == selectedCategory }
+        }
+    }.asLiveData()
+
+    fun setSelectedCategory(category: String?) {
+        _selectedCategory.value = category
+    }
+
 
     fun insertService(service: Service) = viewModelScope.launch {
-        serviceDao.insertService(service)
+        serviceRepository.insertService(service)
     }
 
     fun updateService(service: Service) = viewModelScope.launch {
-        serviceDao.updateService(service)
+        serviceRepository.updateService(service)
     }
 
     fun deleteService(service: Service) = viewModelScope.launch {
-        serviceDao.deleteService(service)
+        serviceRepository.deleteService(service)
     }
 
     suspend fun getServiceById(serviceId: Int): Service? {
-        return serviceDao.getServiceById(serviceId)
+        return serviceRepository.getServiceById(serviceId)
     }
 }
 
-
+class ServicesViewModelFactory(private val serviceRepository: ServiceRepository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(ServicesViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return ServicesViewModel(serviceRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}

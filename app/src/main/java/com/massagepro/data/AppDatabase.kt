@@ -11,13 +11,13 @@ import com.massagepro.data.model.Client
 import com.massagepro.data.model.Service
 import androidx.room.Room
 import kotlinx.coroutines.CoroutineScope
-import android.content.Context // Добавлен импорт Context
+import android.content.Context
 
-@Database(entities = [Client::class, Service::class, Appointment::class], version = 2, exportSchema = false)
+@Database(entities = [Client::class, Service::class, Appointment::class], version =9, exportSchema = false) // Версия увеличена до 6
 @TypeConverters(DateConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun clientDao(): ClientDao
-    abstract fun serviceDao(): ServiceDao // ИСПРАВЛЕНО: Убран лишний 'fun'
+    abstract fun serviceDao(): ServiceDao
     abstract fun appointmentDao(): AppointmentDao
 
     companion object {

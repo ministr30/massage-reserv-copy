@@ -1,5 +1,4 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- 1. Основная тема приложения -->
     <style name="Theme.MassagePRO" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/blue_500</item>
@@ -11,18 +10,16 @@
         <item name="colorOnSecondary">@color/black</item>
         <!-- Status bar color. -->
         <item name="android:statusBarColor" tools:targetApi="l">@android:color/transparent</item>
-
         <!-- Иконки статус-бара будут темными -->
         <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="colorSurface">@color/colorSurface</item>
+        <item name="colorOnSurface">@color/colorOnSurface</item>
+        <item name="hintTextColor">@color/grey_text_disabled</item>
     </style>
 
-    <!-- 2. НОВАЯ ТЕМА ДЛЯ ЗАСТАВКИ -->
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
-        <!-- Цвет фона заставки -->
         <item name="windowSplashScreenBackground">@color/white</item>
-        <!-- Иконка заставки (ваше изображение) -->
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_logo</item>
-        <!-- Тема, которая будет применена после заставки -->
         <item name="postSplashScreenTheme">@style/Theme.MassagePRO</item>
     </style>
 </resources>

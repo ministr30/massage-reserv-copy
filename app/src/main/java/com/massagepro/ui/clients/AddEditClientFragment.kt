@@ -26,13 +26,20 @@ import com.massagepro.App
 import com.massagepro.R
 import com.massagepro.data.model.Client
 import com.massagepro.databinding.FragmentAddEditClientBinding
+import com.massagepro.data.repository.ClientRepository
 import kotlinx.coroutines.launch
 
 class AddEditClientFragment : Fragment() {
 
     private var _binding: FragmentAddEditClientBinding? = null
     private val binding get() = _binding!!
-    private val viewModel: ClientsViewModel by viewModels { ClientsViewModelFactory((requireActivity().application as App).database.clientDao()) }
+    // ИСПРАВЛЕНО: ViewModelFactory инициализируется репозиторием
+    private val viewModel: ClientsViewModel by viewModels {
+        val database = (requireActivity().application as App).database
+        ClientsViewModelFactory(
+            ClientRepository(database.clientDao()) // Правильно передаем ClientRepository
+        )
+    }
     private val args: AddEditClientFragmentArgs by navArgs()
 
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
@@ -45,7 +52,8 @@ class AddEditClientFragment : Fragment() {
             if (isGranted) {
                 launchContactPicker()
             } else {
-                Toast.makeText(requireContext(), "Разрешение на чтение контактов отклонено.", Toast.LENGTH_SHORT).show()
+                // ЗМІНЕНО: використання строкових ресурсів
+                Toast.makeText(requireContext(), getString(R.string.contacts_permission_denied), Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -71,10 +79,8 @@ class AddEditClientFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Применяем отступы к корневому представлению
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            // Устанавливаем padding, сохраняя оригинальные боковые и нижний отступы, заданные в XML
             v.setPadding(v.paddingLeft, systemBars.top + v.paddingTop, v.paddingRight, v.paddingBottom)
             insets
         }
@@ -84,14 +90,15 @@ class AddEditClientFragment : Fragment() {
             lifecycleScope.launch {
                 viewModel.getClientById(clientId)?.let { client ->
                     binding.editTextClientName.setText(client.name)
-                    binding.editTextClientPhone.setText(client.phone)
+                    // ЗМІНЕНО: безпечний доступ до phone?.toString()
+                    binding.editTextClientPhone.setText(client.phone ?: "")
                     binding.editTextClientNotes.setText(client.notes)
                 }
             }
         }
 
         binding.buttonSaveClient.setOnClickListener { saveClient() }
-        binding.buttonImportContact.setOnClickListener { startContactImport() }
+        binding.buttonImportContact.setOnClickListener { startContactImport() } // Назначаем слушатель для кнопки импорта
     }
 
     private fun saveClient() {
@@ -106,6 +113,7 @@ class AddEditClientFragment : Fragment() {
             binding.textInputClientName.error = null
         }
 
+        // Валидация телефона, если он не пустой
         if (phone.isNotEmpty() && !isValidPhoneNumber(phone)) {
             binding.textInputClientPhone.error = getString(R.string.phone_format_error_flexible)
             return
@@ -113,12 +121,13 @@ class AddEditClientFragment : Fragment() {
             binding.textInputClientPhone.error = null
         }
 
+        // Нормализация телефона: если поле телефона пустое, сохраняем как null
         val normalizedPhone = if (phone.isNotEmpty()) normalizePhoneNumber(phone) else null
 
         val client = if (args.clientId == -1) {
-            Client(name = name, phone = normalizedPhone, notes = notes.ifEmpty { null })
+            Client(name = name, phone = normalizedPhone, notes = notes.ifEmpty { "" }) // notes.ifEmpty { "" } вместо null
         } else {
-            Client(id = args.clientId, name = name, phone = normalizedPhone, notes = notes.ifEmpty { null })
+            Client(id = args.clientId, name = name, phone = normalizedPhone, notes = notes.ifEmpty { "" }) // notes.ifEmpty { "" } вместо null
         }
 
         lifecycleScope.launch {
@@ -149,6 +158,7 @@ class AddEditClientFragment : Fragment() {
         return cleanedNumber
     }
 
+    // --- Методы для импорта контактов ---
     private fun startContactImport() {
         when {
             ContextCompat.checkSelfPermission(
@@ -159,17 +169,17 @@ class AddEditClientFragment : Fragment() {
             }
             shouldShowRequestPermissionRationale(Manifest.permission.READ_CONTACTS) -> {
                 AlertDialog.Builder(requireContext())
-                    .setTitle("Разрешение на контакты")
-                    .setMessage("Для импорта клиентов из вашей телефонной книги приложению требуется доступ к контактам.")
-                    .setPositiveButton("Предоставить") { _, _ ->
+                    .setTitle(getString(R.string.contacts_permission_title)) // ЗМІНЕНО: ресурс
+                    .setMessage(getString(R.string.contacts_permission_message)) // ЗМІНЕНО: ресурс
+                    .setPositiveButton(getString(R.string.contacts_permission_grant_button)) { _, _ -> // ЗМІНЕНО: ресурс
                         requestPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
                     }
-                    .setNegativeButton("Отмена", null)
+                    .setNegativeButton(getString(R.string.cancel_button_text), null)
                     .show()
             }
             else -> {
                 requestPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
-
+                // Если разрешение было окончательно отклонено (пользователь поставил "Don't ask again")
                 if (!shouldShowRequestPermissionRationale(Manifest.permission.READ_CONTACTS) &&
                     ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
                     showSettingsDialog()
@@ -183,11 +193,9 @@ class AddEditClientFragment : Fragment() {
         pickContactLauncher.launch(intent)
     }
 
-    // ИСПРАВЛЕННАЯ ФУНКЦИЯ retrieveContactDetails
     private fun retrieveContactDetails(contactUri: Uri) {
         var contactId: String? = null
 
-        // Шаг 1: Получаем ID контакта из выбранного URI
         requireContext().contentResolver.query(contactUri, arrayOf(ContactsContract.Contacts._ID), null, null, null)?.use { cursor ->
             if (cursor.moveToFirst()) {
                 val idIndex = cursor.getColumnIndex(ContactsContract.Contacts._ID)
@@ -198,7 +206,6 @@ class AddEditClientFragment : Fragment() {
         }
 
         contactId?.let { id ->
-            // Шаг 2: Используем ID контакта для запроса имени и номера телефона
             val phoneProjection = arrayOf(
                 ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
                 ContactsContract.CommonDataKinds.Phone.NUMBER
@@ -207,7 +214,7 @@ class AddEditClientFragment : Fragment() {
             val selectionArgs = arrayOf(id)
 
             requireContext().contentResolver.query(
-                ContactsContract.CommonDataKinds.Phone.CONTENT_URI, // Запрашиваем из таблицы телефонов
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
                 phoneProjection,
                 selection,
                 selectionArgs,
@@ -224,32 +231,35 @@ class AddEditClientFragment : Fragment() {
                         binding.editTextClientName.setText(name)
                         binding.editTextClientPhone.setText(phoneNumber)
                     } else {
-                        Toast.makeText(requireContext(), "Не удалось получить имя или номер телефона контакта.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(requireContext(), getString(R.string.contact_details_not_found), Toast.LENGTH_LONG).show() // ЗМІНЕНО: ресурс
                     }
                 } else {
-                    Toast.makeText(requireContext(), "У выбранного контакта нет номера телефона.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(requireContext(), getString(R.string.contact_no_phone_number), Toast.LENGTH_LONG).show() // ЗМІНЕНО: ресурс
                 }
             } ?: run {
-                Toast.makeText(requireContext(), "Ошибка при запросе данных телефона контакта.", Toast.LENGTH_LONG).show()
+                Toast.makeText(requireContext(), getString(R.string.contact_phone_query_error), Toast.LENGTH_LONG).show() // ЗМІНЕНО: ресурс
             }
         } ?: run {
-            Toast.makeText(requireContext(), "Не удалось получить ID контакта.", Toast.LENGTH_LONG).show()
+            Toast.makeText(requireContext(), getString(R.string.contact_id_not_found), Toast.LENGTH_LONG).show() // ЗМІНЕНО: ресурс
         }
     }
 
     private fun showSettingsDialog() {
-        AlertDialog.Builder(requireContext())
-            .setTitle("Требуется разрешение")
-            .setMessage("Для импорта контактов требуется разрешение на доступ к контактам. Пожалуйста, предоставьте его в настройках приложения.")
-            .setPositiveButton("Перейти в настройки") { _, _ ->
+        val alertDialog = AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.permission_required_title)) // ЗМІНЕНО: ресурс
+            .setMessage(getString(R.string.permission_required_message)) // ЗМІНЕНО: ресурс
+            .setPositiveButton(getString(R.string.go_to_settings_button)) { _, _ -> // ЗМІНЕНО: ресурс
                 val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                 val uri = Uri.fromParts("package", requireActivity().packageName, null)
                 intent.data = uri
                 startActivity(intent)
             }
-            .setNegativeButton("Отмена", null)
-            .show()
+            .setNegativeButton(getString(R.string.cancel_button_text), null)
+            .create()
+        alertDialog.show()
     }
+
+    // --- Конец методов для импорта контактов ---
 
     override fun onDestroyView() {
         super.onDestroyView()

@@ -1,44 +1,65 @@
 package com.massagepro.ui.appointments
 
-import android.app.DatePickerDialog
-import android.app.TimePickerDialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import com.google.android.material.datepicker.MaterialDatePicker
+import com.google.android.material.timepicker.MaterialTimePicker
+import com.google.android.material.timepicker.TimeFormat
 import com.massagepro.App
 import com.massagepro.R
 import com.massagepro.data.model.Appointment
 import com.massagepro.data.model.Client
 import com.massagepro.data.model.Service
+import com.massagepro.data.repository.AppointmentRepository
+import com.massagepro.data.repository.ClientRepository
+import com.massagepro.data.repository.ServiceRepository
 import com.massagepro.databinding.FragmentAddEditAppointmentBinding
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.Calendar
-import java.util.Date
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Locale
+import java.util.TimeZone
+import androidx.lifecycle.asFlow
 
-class AddEditAppointmentFragment : Fragment( ) {
+class AddEditAppointmentFragment : Fragment() {
 
     private var _binding: FragmentAddEditAppointmentBinding? = null
     private val binding get() = _binding!!
-    private val viewModel: AppointmentViewModel by viewModels { AppointmentViewModelFactory((requireActivity().application as App).database.appointmentDao(), (requireActivity().application as App).database.clientDao(), (requireActivity().application as App).database.serviceDao()) }
+
+    private val viewModel: AppointmentsViewModel by viewModels {
+        val database = (requireActivity().application as App).database
+        val clientRepository = ClientRepository(database.clientDao())
+        val serviceRepository = ServiceRepository(database.serviceDao())
+        AppointmentsViewModelFactory(
+            AppointmentRepository(database.appointmentDao(), serviceRepository),
+            clientRepository,
+            serviceRepository
+        )
+    }
+
     private val args: AddEditAppointmentFragmentArgs by navArgs()
 
-    private var selectedClient: Client? = null
+    private var selectedDateMillis: Long = 0L
+    private var selectedHour: Int = 0
+    private var selectedMinute: Int = 0
+
+    private var selectedClientId: Int? = null
     private var selectedService: Service? = null
-    private var selectedCalendar: Calendar = Calendar.getInstance()
+    private var selectedNotes: String? = null
 
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
+        inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentAddEditAppointmentBinding.inflate(inflater, container, false)
@@ -48,192 +69,217 @@ class AddEditAppointmentFragment : Fragment( ) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Инициализация времени из аргументов, если оно передано
         val initialTimeMillis = args.selectedStartTime
         if (initialTimeMillis != -1L) {
-            selectedCalendar.timeInMillis = initialTimeMillis
+            val calendar = Calendar.getInstance().apply { timeInMillis = initialTimeMillis }
+            selectedDateMillis = initialTimeMillis
+            selectedHour = calendar.get(Calendar.HOUR_OF_DAY)
+            selectedMinute = calendar.get(Calendar.MINUTE)
+        } else {
+            val now = Calendar.getInstance()
+            selectedDateMillis = now.timeInMillis
+            selectedHour = now.get(Calendar.HOUR_OF_DAY)
+            selectedMinute = now.get(Calendar.MINUTE)
         }
 
-        setupClientDropdown()
-        setupServiceDropdown()
+        setupClientSpinner()
+        setupServiceSpinner()
         setupDateTimePickers()
-        setupSaveButton()
-        setupAddNewClientButton()
+        binding.buttonSaveAppointment.setOnClickListener { saveAppointment() }
 
         val appointmentId = args.appointmentId
         if (appointmentId != -1) {
-            // Редактирование существующей записи
             lifecycleScope.launch {
                 viewModel.getAppointmentById(appointmentId)?.let { appointment ->
-                    // Предзаполнение данных для редактирования
-                    selectedCalendar.time = appointment.startTime
-                    updateDateTimeDisplay()
-                    calculateTotalCost()
+                    selectedClientId = appointment.clientId
+                    selectedService = viewModel.getServiceById(appointment.serviceId)
+                    selectedNotes = appointment.notes
 
-                    // Выбор клиента и услуги в выпадающих списках
-                    viewModel.allClients.observe(viewLifecycleOwner) { clients ->
-                        clients.find { it.id == appointment.clientId }?.let { client ->
-                            selectedClient = client
-                            binding.autoCompleteClient.setText(client.name, false) // false, чтобы не вызывать слушатель текста
-                        }
+                    binding.editTextDuration.setText(appointment.serviceDuration.toString())
+                    // ЗМІНЕНО: toString() без форматування (тепер Int)
+                    binding.editTextPrice.setText(appointment.servicePrice.toString())
+                    binding.editTextNotes.setText(appointment.notes)
+
+                    val calendar = Calendar.getInstance().apply { timeInMillis = appointment.dateTime }
+                    selectedDateMillis = appointment.dateTime
+                    selectedHour = calendar.get(Calendar.HOUR_OF_DAY)
+                    selectedMinute = calendar.get(Calendar.MINUTE)
+
+                    updateDateAndTimeUI()
+
+                    viewModel.allClients.asFlow().first().find { client -> client.id == appointment.clientId }?.let { client ->
+                        (binding.autoCompleteTextClient as? AutoCompleteTextView)?.setText(client.name, false)
                     }
-                    viewModel.allServices.observe(viewLifecycleOwner) { services ->
-                        services.find { it.id == appointment.serviceId }?.let { service ->
-                            selectedService = service
-                            binding.autoCompleteService.setText(service.name, false) // false, чтобы не вызывать слушатель текста
-                        }
+                    viewModel.allServices.asFlow().first().find { service -> service.id == appointment.serviceId }?.let { service ->
+                        (binding.autoCompleteTextService as? AutoCompleteTextView)?.setText(service.name, false)
                     }
                 }
             }
         } else {
-            // Если это новая запись, убедимся, что отображается актуальное время
-            updateDateTimeDisplay()
-            calculateTotalCost()
+            updateDateAndTimeUI()
         }
     }
 
-    private fun setupClientDropdown() {
+    private fun setupClientSpinner() {
         viewModel.allClients.observe(viewLifecycleOwner) { clients ->
-            val clientNames = clients.map { it.name }
-            val adapter = ArrayAdapter(requireContext(), R.layout.list_item_dropdown, clientNames) // Используем простой макет для элементов списка
-            binding.autoCompleteClient.setAdapter(adapter)
+            val clientNames = clients.map { it.name }.toTypedArray()
+            val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, clientNames)
+            (binding.autoCompleteTextClient as? AutoCompleteTextView)?.setAdapter(adapter)
 
-            binding.autoCompleteClient.setOnItemClickListener { parent, _, position, _ ->
-                val selectedName = parent.getItemAtPosition(position).toString()
-                selectedClient = clients.find { it.name == selectedName }
+            (binding.autoCompleteTextClient as? AutoCompleteTextView)?.setOnItemClickListener { parent, view, position, id ->
+                val selectedClientName = parent.getItemAtPosition(position).toString()
+                selectedClientId = clients.find { it.name == selectedClientName }?.id
             }
         }
     }
 
-    private fun setupServiceDropdown() {
+    private fun setupServiceSpinner() {
         viewModel.allServices.observe(viewLifecycleOwner) { services ->
-            val serviceNames = services.map { it.name }
-            val adapter = ArrayAdapter(requireContext(), R.layout.list_item_dropdown, serviceNames) // Используем простой макет для элементов списка
-            binding.autoCompleteService.setAdapter(adapter)
+            val serviceNames = services.map { it.name }.toTypedArray()
+            val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, serviceNames)
+            (binding.autoCompleteTextService as? AutoCompleteTextView)?.setAdapter(adapter)
 
-            binding.autoCompleteService.setOnItemClickListener { parent, _, position, _ ->
-                val selectedName = parent.getItemAtPosition(position).toString()
-                selectedService = services.find { it.name == selectedName }
-                calculateTotalCost() // Пересчитываем стоимость при выборе услуги
+            (binding.autoCompleteTextService as? AutoCompleteTextView)?.setOnItemClickListener { parent, view, position, id ->
+                val selectedServiceName = parent.getItemAtPosition(position).toString()
+                val service = services.find { it.name == selectedServiceName }
+                selectedService = service
+
+                binding.editTextDuration.setText(service?.duration?.toString() ?: "")
+                // ЗМІНЕНО: toString() без форматування (тепер Int)
+                binding.editTextPrice.setText(service?.basePrice?.toString() ?: "")
             }
         }
     }
 
     private fun setupDateTimePickers() {
-        binding.buttonSelectDate.setOnClickListener { showDatePicker() }
-        binding.buttonSelectTime.setOnClickListener { showTimePicker() }
-        updateDateTimeDisplay()
+        binding.textInputLayoutDate.setEndIconOnClickListener {
+            showDatePicker()
+        }
+        binding.editTextDate.setOnClickListener {
+            showDatePicker()
+        }
+
+        binding.textInputLayoutTime.setEndIconOnClickListener {
+            showTimePicker()
+        }
+        binding.editTextTime.setOnClickListener {
+            showTimePicker()
+        }
     }
 
     private fun showDatePicker() {
-        val year = selectedCalendar.get(Calendar.YEAR)
-        val month = selectedCalendar.get(Calendar.MONTH)
-        val day = selectedCalendar.get(Calendar.DAY_OF_MONTH)
+        val datePicker = MaterialDatePicker.Builder.datePicker()
+            .setTitleText(getString(R.string.select_date))
+            .setSelection(selectedDateMillis)
+            .build()
 
-        DatePickerDialog(requireContext(), { _, selectedYear, selectedMonth, selectedDay ->
-            selectedCalendar.set(selectedYear, selectedMonth, selectedDay)
-            updateDateTimeDisplay()
-            calculateTotalCost()
-        }, year, month, day).show()
+        datePicker.addOnPositiveButtonClickListener { selection ->
+            selectedDateMillis = selection
+            updateDateAndTimeUI()
+        }
+        datePicker.show(parentFragmentManager, "date_picker")
     }
 
     private fun showTimePicker() {
-        val hour = selectedCalendar.get(Calendar.HOUR_OF_DAY)
-        val minute = selectedCalendar.get(Calendar.MINUTE)
+        val timePicker = MaterialTimePicker.Builder()
+            .setTimeFormat(TimeFormat.CLOCK_24H)
+            .setHour(selectedHour)
+            .setMinute(selectedMinute)
+            .setTitleText(getString(R.string.select_time))
+            .build()
 
-        TimePickerDialog(requireContext(), { _, selectedHour, selectedMinute ->
-            selectedCalendar.set(Calendar.HOUR_OF_DAY, selectedHour)
-            selectedCalendar.set(Calendar.MINUTE, selectedMinute)
-            updateDateTimeDisplay()
-            calculateTotalCost()
-        }, hour, minute, true).show()
-    }
-
-    private fun updateDateTimeDisplay() {
-        // Разделяем форматирование даты и времени
-        val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
-        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-
-        val dateString = dateFormat.format(selectedCalendar.time)
-        val timeString = timeFormat.format(selectedCalendar.time)
-
-        // Передаем два аргумента в строковый ресурс
-        binding.textViewSelectedDateTime.text = getString(R.string.selected_date_time_format, dateString, timeString)
-    }
-
-    private fun calculateTotalCost() {
-        val basePrice = selectedService?.basePrice ?: 0.0
-        var totalCost = basePrice
-
-        // Add Sunday surcharge
-        if (selectedCalendar.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-            totalCost += 100.0
-            binding.textViewTotalCost.text = getString(R.string.total_cost_sunday_format, totalCost)
-        } else {
-            binding.textViewTotalCost.text = getString(R.string.total_cost_format, totalCost)
+        timePicker.addOnPositiveButtonClickListener {
+            selectedHour = timePicker.hour
+            selectedMinute = timePicker.minute
+            updateDateAndTimeUI()
         }
+        timePicker.show(parentFragmentManager, "time_picker")
     }
 
-    private fun setupSaveButton() {
-        binding.buttonSaveAppointment.setOnClickListener { saveAppointment() }
+    private fun updateDateAndTimeUI() {
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = selectedDateMillis
+            set(Calendar.HOUR_OF_DAY, selectedHour)
+            set(Calendar.MINUTE, selectedMinute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+        binding.editTextDate.setText(dateFormat.format(calendar.time))
+
+        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+        binding.editTextTime.setText(timeFormat.format(calendar.time))
     }
 
     private fun saveAppointment() {
-        val clientId = selectedClient?.id
-        val serviceId = selectedService?.id
-        val startTime = selectedCalendar.time
+        val notes = binding.editTextNotes.text.toString().trim()
+        val durationString = binding.editTextDuration.text.toString().trim()
+        val priceString = binding.editTextPrice.text.toString().trim()
 
-        if (clientId == null || serviceId == null) {
-            Toast.makeText(requireContext(), getString(R.string.select_client_service_error), Toast.LENGTH_SHORT).show()
+        if (selectedClientId == null || selectedService == null || durationString.isEmpty() || priceString.isEmpty() || selectedDateMillis == 0L) {
+            Toast.makeText(requireContext(), getString(R.string.appointment_fields_empty_error), Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Validate past time
-        if (startTime.before(Date())) {
-            Toast.makeText(requireContext(), getString(R.string.past_appointment_error), Toast.LENGTH_SHORT).show()
+        val duration = durationString.toIntOrNull()
+        val price = priceString.toIntOrNull() // ЗМІНЕНО: toIntOrNull()
+
+        if (duration == null || price == null || duration <= 0 || price < 0) {
+            Toast.makeText(requireContext(), getString(R.string.appointment_invalid_numeric_error), Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Calculate end time based on service duration
-        val endTimeCalendar = Calendar.getInstance().apply { time = startTime }
-        endTimeCalendar.add(Calendar.MINUTE, selectedService?.duration ?: 0)
-        val endTime = endTimeCalendar.time
+        val combinedDateTime = Calendar.getInstance().apply {
+            timeInMillis = selectedDateMillis
+            set(Calendar.HOUR_OF_DAY, selectedHour)
+            set(Calendar.MINUTE, selectedMinute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
 
-        // Check for conflicts
+        val appointment = if (args.appointmentId == -1) {
+            Appointment(
+                clientId = selectedClientId!!,
+                serviceId = selectedService!!.id,
+                serviceName = selectedService!!.name,
+                serviceDuration = duration,
+                servicePrice = price, // Тепер це Int
+                dateTime = combinedDateTime,
+                notes = notes
+            )
+        } else {
+            Appointment(
+                id = args.appointmentId,
+                clientId = selectedClientId!!,
+                serviceId = selectedService!!.id,
+                serviceName = selectedService!!.name,
+                serviceDuration = duration,
+                servicePrice = price, // Тепер це Int
+                dateTime = combinedDateTime,
+                notes = notes
+            )
+        }
+
         lifecycleScope.launch {
-            val conflictingAppointments = viewModel.getConflictingAppointments(startTime, endTime, args.appointmentId)
+            val conflictingAppointments = viewModel.getConflictingAppointments(
+                combinedDateTime,
+                combinedDateTime + duration * 60 * 1000,
+                args.appointmentId
+            )
             if (conflictingAppointments.isNotEmpty()) {
                 Toast.makeText(requireContext(), getString(R.string.conflicting_appointment_error), Toast.LENGTH_LONG).show()
                 return@launch
             }
 
-            val totalCost = if (selectedCalendar.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-                (selectedService?.basePrice ?: 0.0) + 100.0
-            } else {
-                selectedService?.basePrice ?: 0.0
-            }
-
-            val appointment = if (args.appointmentId == -1) {
-                Appointment(clientId = clientId, serviceId = serviceId, startTime = startTime, endTime = endTime, totalCost = totalCost)
-            } else {
-                Appointment(id = args.appointmentId, clientId = clientId, serviceId = serviceId, startTime = startTime, endTime = endTime, totalCost = totalCost)
-            }
-
             if (args.appointmentId == -1) {
                 viewModel.insertAppointment(appointment)
-                Toast.makeText(requireContext(), getString(R.string.appointment_created_toast), Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), getString(R.string.appointment_added_toast), Toast.LENGTH_SHORT).show()
             } else {
                 viewModel.updateAppointment(appointment)
                 Toast.makeText(requireContext(), getString(R.string.appointment_updated_toast), Toast.LENGTH_SHORT).show()
             }
             findNavController().popBackStack()
-        }
-    }
-
-    private fun setupAddNewClientButton() {
-        binding.buttonAddNewClient.setOnClickListener {
-            val action = AddEditAppointmentFragmentDirections.actionAddEditAppointmentFragmentToAddEditClientFragment(-1)
-            findNavController().navigate(action)
         }
     }
 

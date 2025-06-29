@@ -1,42 +1,26 @@
 package com.massagepro.ui.home
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.massagepro.R
 import com.massagepro.databinding.ItemTimeSlotBinding
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Locale
-import android.view.View
-import com.massagepro.R
+import androidx.core.content.ContextCompat
 import com.massagepro.data.model.Appointment
 import com.massagepro.data.model.Client
 import com.massagepro.data.model.Service
-import android.util.TypedValue // ДОБАВИТЬ ЭТОТ ИМПОРТ
-import android.content.res.Resources // ДОБАВИТЬ ЭТОТ ИМПОРТ
-
-// Data class for a time slot
-data class TimeSlot(
-    val startTime: Calendar,
-    val endTime: Calendar,
-    var isBooked: Boolean = false,
-    var appointment: Appointment? = null, // Store the actual appointment if booked
-    var client: Client? = null, // Store client details for display
-    var service: Service? = null // Store service details for display
-)
+import java.util.Calendar
+import java.util.Date
 
 class TimeSlotAdapter(
     private val onBookClick: (TimeSlot) -> Unit,
-    private val onBookedSlotClick: (Appointment) -> Unit // Callback for clicking booked slots
-) : RecyclerView.Adapter<TimeSlotAdapter.TimeSlotViewHolder>() {
-
-    private val timeSlots = mutableListOf<TimeSlot>()
-
-    fun submitList(list: List<TimeSlot>) {
-        timeSlots.clear()
-        timeSlots.addAll(list)
-        notifyDataSetChanged()
-    }
+    private val showAppointmentActionsDialog: (Appointment) -> Unit
+) : ListAdapter<TimeSlot, TimeSlotAdapter.TimeSlotViewHolder>(TimeSlotDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TimeSlotViewHolder {
         val binding = ItemTimeSlotBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -44,56 +28,76 @@ class TimeSlotAdapter(
     }
 
     override fun onBindViewHolder(holder: TimeSlotViewHolder, position: Int) {
-        val timeSlot = timeSlots[position]
-        holder.bind(timeSlot)
+        val timeSlot = getItem(position)
+        holder.bind(timeSlot, onBookClick, showAppointmentActionsDialog)
     }
 
-    override fun getItemCount(): Int = timeSlots.size
+    class TimeSlotViewHolder(private val binding: ItemTimeSlotBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind(timeSlot: TimeSlot, onBookClick: (TimeSlot) -> Unit, showAppointmentActionsDialog: (Appointment) -> Unit) {
+            val timeFormat = SimpleDateFormat("HH:mm", Locale("uk", "UA"))
+            binding.textViewTimeSlot.text = timeFormat.format(timeSlot.startTime.time)
 
-    inner class TimeSlotViewHolder(private val binding: ItemTimeSlotBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(timeSlot: TimeSlot) {
-            val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-            binding.textViewTimeSlot.text = "${timeFormat.format(timeSlot.startTime.time)} - ${timeFormat.format(timeSlot.endTime.time)}"
+            val currentTime = Calendar.getInstance()
+            currentTime.set(Calendar.SECOND, 0)
+            currentTime.set(Calendar.MILLISECOND, 0)
+
+            val isPastSlot = timeSlot.startTime.before(currentTime)
 
             if (timeSlot.isBooked) {
-                binding.buttonBookSlot.visibility = View.GONE
-                binding.textViewAppointmentInfo.visibility = View.VISIBLE
+                binding.buttonBook.visibility = View.GONE
+                binding.bookedLayout.visibility = View.VISIBLE
 
-                val clientName = timeSlot.client?.name ?: binding.root.context.getString(R.string.unknown_client_service)
-                val serviceName = timeSlot.service?.name ?: binding.root.context.getString(R.string.unknown_client_service)
-                val totalCost = timeSlot.appointment?.totalCost?.let { "%.2f".format(it) } ?: "N/A"
+                val clientName = timeSlot.client?.name ?: binding.root.context.getString(R.string.unknown_client)
+                val serviceName = timeSlot.service?.name ?: binding.root.context.getString(R.string.unknown_service)
+                val statusText = binding.root.context.getString(R.string.appointment_status_prefix, timeSlot.bookedAppointment?.status ?: "")
 
-                val infoText = binding.root.context.getString(
-                    R.string.occupied_slot_info_full,
-                    clientName,
-                    serviceName,
-                    totalCost
-                )
-                binding.textViewAppointmentInfo.text = infoText
 
-                binding.root.setBackgroundColor(binding.root.context.resources.getColor(R.color.booked_slot_background_color, null))
+                binding.textViewClientName.text = clientName
+                binding.textViewServiceName.text = serviceName
+                binding.textViewAppointmentStatus.text = statusText
 
-                // Set click listener for booked slot
-                binding.root.setOnClickListener {
-                    timeSlot.appointment?.let { appointment ->
-                        onBookedSlotClick(appointment)
-                    }
+                binding.cardViewTimeSlot.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.colorBookedSlot))
+                binding.textViewTimeSlot.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
+                binding.textViewClientName.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
+                binding.textViewServiceName.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
+                binding.textViewAppointmentStatus.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
+
+
+                timeSlot.bookedAppointment?.let { appointment ->
+                    binding.root.setOnClickListener { showAppointmentActionsDialog(appointment) }
                 }
+            } else if (isPastSlot) {
+                binding.buttonBook.visibility = View.GONE
+                binding.bookedLayout.visibility = View.GONE
+                binding.root.setOnClickListener(null)
 
+                binding.cardViewTimeSlot.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.colorPastSlot))
+                binding.textViewTimeSlot.setTextColor(ContextCompat.getColor(binding.root.context, R.color.grey_text_disabled))
             } else {
-                binding.buttonBookSlot.visibility = View.VISIBLE
-                binding.textViewAppointmentInfo.visibility = View.GONE
+                binding.buttonBook.visibility = View.VISIBLE
+                binding.bookedLayout.visibility = View.GONE
 
-                // ДОБАВИТЬ ЭТИ СТРОКИ:
-                val typedValue = TypedValue()
-                val theme = binding.root.context.theme
-                // Получаем значение colorSurface из текущей темы
-                theme.resolveAttribute(com.google.android.material.R.attr.colorSurface, typedValue, true)
-                binding.root.setBackgroundColor(typedValue.data)
+                binding.buttonBook.setOnClickListener { onBookClick(timeSlot) }
 
-                binding.buttonBookSlot.setOnClickListener { onBookClick(timeSlot) }
-                binding.root.setOnClickListener(null) // Clear listener for unbooked slots
+                binding.cardViewTimeSlot.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.colorFreeSlot))
+                binding.textViewTimeSlot.setTextColor(ContextCompat.getColor(binding.root.context, R.color.black))
             }
+        }
+    }
+
+    private class TimeSlotDiffCallback : DiffUtil.ItemCallback<TimeSlot>() {
+        override fun areItemsTheSame(oldItem: TimeSlot, newItem: TimeSlot): Boolean {
+            if (!oldItem.isBooked && !newItem.isBooked) {
+                return oldItem.startTime.timeInMillis == newItem.startTime.timeInMillis
+            }
+            if (oldItem.isBooked && newItem.isBooked) {
+                return oldItem.bookedAppointment?.id == newItem.bookedAppointment?.id
+            }
+            return false
+        }
+
+        override fun areContentsTheSame(oldItem: TimeSlot, newItem: TimeSlot): Boolean {
+            return oldItem == newItem
         }
     }
 }

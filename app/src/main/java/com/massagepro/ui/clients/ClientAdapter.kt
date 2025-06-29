@@ -1,4 +1,3 @@
-
 package com.massagepro.ui.clients
 
 import android.view.LayoutInflater
@@ -9,8 +8,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.massagepro.data.model.Client
 import com.massagepro.databinding.ItemClientBinding
 
-class ClientAdapter(private val onClientClick: (Client) -> Unit, private val onEditClick: (Client) -> Unit, private val onDeleteClick: (Client) -> Unit) :
-    ListAdapter<Client, ClientAdapter.ClientViewHolder>(ClientDiffCallback()) {
+class ClientAdapter(
+    private val onClientClick: (Client) -> Unit,
+    private val onEditClick: (Client) -> Unit,
+    private val onDeleteClick: (Client) -> Unit
+) : ListAdapter<Client, ClientAdapter.ClientViewHolder>(ClientDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ClientViewHolder {
         val binding = ItemClientBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -43,5 +45,3 @@ class ClientAdapter(private val onClientClick: (Client) -> Unit, private val onE
         }
     }
 }
-
-

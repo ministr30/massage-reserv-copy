@@ -1,44 +1,99 @@
 package com.massagepro.data.dao
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
 import com.massagepro.data.model.Appointment
+import com.massagepro.data.model.AppointmentWithClientAndService
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AppointmentDao {
-
-    // 1. Добавлен метод для получения всех записей, который возвращает Flow
-    @Query("SELECT * FROM appointments ORDER BY startTime DESC")
+    @Query("SELECT * FROM appointments ORDER BY dateTime ASC")
     fun getAllAppointments(): Flow<List<Appointment>>
 
-    // 2. Методы insert, update, delete переименованы, чтобы совпадать с ViewModel
+    @Query("SELECT * FROM appointments WHERE id = :id")
+    suspend fun getAppointmentById(id: Int): Appointment?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAppointment(appointment: Appointment)
 
-    @Update
+    @Update(onConflict = OnConflictStrategy.REPLACE)
     suspend fun updateAppointment(appointment: Appointment)
 
     @Delete
     suspend fun deleteAppointment(appointment: Appointment)
 
-    // 3. getAppointmentById изменен на suspend и возвращает Appointment?
-    // Это соответствует тому, что ожидает AppointmentViewModel.
-    @Query("SELECT * FROM appointments WHERE id = :id")
-    suspend fun getAppointmentById(id: Int): Appointment?
+    // Запрос для получения всех записей с именами клиента и услуги
+    // ИСПРАВЛЕНО: Добавлены явные псевдонимы 'appt_' для полей таблицы appointments,
+    // чтобы избежать конфликтов имен с clients.name и services.name
+    @Query("""
+        SELECT
+            a.id AS appt_id,
+            a.clientId AS appt_clientId,
+            a.serviceId AS appt_serviceId,
+            a.serviceName AS appt_serviceName,
+            a.serviceDuration AS appt_serviceDuration,
+            a.servicePrice AS appt_servicePrice,
+            a.dateTime AS appt_dateTime,
+            a.notes AS appt_notes,
+            a.status AS appt_status,
+            c.name AS clientName,
+            s.name AS serviceName
+        FROM
+            appointments a
+        INNER JOIN
+            clients c ON a.clientId = c.id
+        INNER JOIN
+            services s ON a.serviceId = s.id
+        ORDER BY
+            a.dateTime ASC
+    """)
+    fun getAppointmentsWithClientAndService(): Flow<List<AppointmentWithClientAndService>>
 
-    /**
-     * Сигнатура метода для получения записей по диапазону дат.
-     * Возвращает Flow<List<Appointment>>
-     */
-    @Query("SELECT * FROM appointments WHERE startTime BETWEEN :startMillis AND :endMillis ORDER BY startTime ASC")
-    fun getAppointmentsForDateRange(startMillis: Long, endMillis: Long): Flow<List<Appointment>>
+    // Запрос для получения записей за определенный день с именами клиента и услуги
+    // ИСПРАВЛЕНО: Добавлены явные псевдонимы 'appt_' для полей таблицы appointments
+    @Query("""
+        SELECT
+            a.id AS appt_id,
+            a.clientId AS appt_clientId,
+            a.serviceId AS appt_serviceId,
+            a.serviceName AS appt_serviceName,
+            a.serviceDuration AS appt_serviceDuration,
+            a.servicePrice AS appt_servicePrice,
+            a.dateTime AS appt_dateTime,
+            a.notes AS appt_notes,
+            a.status AS appt_status,
+            c.name AS clientName,
+            s.name AS serviceName
+        FROM
+            appointments a
+        INNER JOIN
+            clients c ON a.clientId = c.id
+        INNER JOIN
+            services s ON a.serviceId = s.id
+        WHERE
+            a.dateTime BETWEEN :startOfDayMillis AND :endOfDayMillis
+        ORDER BY
+            a.dateTime ASC
+    """)
+    fun getAppointmentsForDay(startOfDayMillis: Long, endOfDayMillis: Long): Flow<List<AppointmentWithClientAndService>>
 
-    // 4. Добавлен метод для получения конфликтующих записей
-    /**
-     * Возвращает список записей, которые конфликтуют по времени с заданным интервалом,
-     * исключая запись с определенным ID (полезно при обновлении существующей записи).
-     * Время хранится как Long (миллисекунды).
-     */
-    @Query("SELECT * FROM appointments WHERE id != :excludeAppointmentId AND ((startTime < :endTime AND endTime > :startTime) OR (startTime = :startTime AND endTime = :endTime))")
-    suspend fun getConflictingAppointments(startTime: Long, endTime: Long, excludeAppointmentId: Int): List<Appointment>
+    // Метод для проверки конфликтов времени, использующий dateTime и serviceDuration
+    // ИСПРАВЛЕНО: Запрос для проверки конфликтов
+    @Query("""
+        SELECT * FROM appointments 
+        WHERE 
+            id != :excludeAppointmentId AND 
+            (
+                (:newStart < (dateTime + serviceDuration * 60 * 1000) AND :newEnd > dateTime) 
+                OR 
+                (:newStart = dateTime AND :newEnd = (dateTime + serviceDuration * 60 * 1000))
+            )
+    """)
+    suspend fun getConflictingAppointments(newStart: Long, newEnd: Long, excludeAppointmentId: Int): List<Appointment>
+
 }

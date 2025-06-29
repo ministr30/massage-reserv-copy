@@ -1,37 +1,56 @@
 package com.massagepro.ui.clients
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
-import com.massagepro.data.dao.ClientDao
+import com.massagepro.data.repository.ClientRepository
 import com.massagepro.data.model.Client
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class ClientsViewModel(private val clientDao: ClientDao) : ViewModel() {
+class ClientsViewModel(private val clientRepository: ClientRepository) : ViewModel() {
 
-    val allClients: LiveData<List<Client>> = clientDao.getAllClients().asLiveData()
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    val allClients: StateFlow<List<Client>> = searchQuery
+        .debounce(300) // необязательно, но удобно
+        .flatMapLatest { query ->
+            if (query.isEmpty()) {
+                clientRepository.getAllClients()
+            } else {
+                clientRepository.searchClients("%$query%")
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
 
     fun insertClient(client: Client) = viewModelScope.launch {
-        clientDao.insertClient(client)
+        clientRepository.insertClient(client)
     }
 
     fun updateClient(client: Client) = viewModelScope.launch {
-        clientDao.updateClient(client)
+        clientRepository.updateClient(client)
     }
 
     fun deleteClient(client: Client) = viewModelScope.launch {
-        clientDao.deleteClient(client)
+        clientRepository.deleteClient(client)
     }
 
-    // ИСПРАВЛЕНО: Теперь это suspend функция, которая возвращает Client?
     suspend fun getClientById(clientId: Int): Client? {
-        return clientDao.getClientById(clientId)
+        return clientRepository.getClientById(clientId)
     }
+}
 
-    fun searchClients(query: String): LiveData<List<Client>> {
-        return clientDao.searchClients(query).asLiveData()
+class ClientsViewModelFactory(private val clientRepository: ClientRepository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(ClientsViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return ClientsViewModel(clientRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

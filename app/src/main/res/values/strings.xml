@@ -1,5 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Massage_PRO</string>
+
     <string name="title_home">Головна</string>
     <string name="title_clients">Клієнти</string>
     <string name="title_services">Послуги</string>
@@ -8,6 +10,11 @@
     <string name="title_add_edit_service">Додати/Редагувати послугу</string>
     <string name="title_add_edit_appointment">Додати/Редагувати запис</string>
 
+    <string name="appointment_status_scheduled">Заплановано</string>
+    <string name="appointment_status_completed">Завершено</string>
+    <string name="appointment_status_cancelled">Скасовано</string>
+    <string name="appointment_status_no_show">Неявка</string>
+
     <string-array name="appointment_statuses">
         <item>Всі</item>
         <item>Заплановано</item>
@@ -15,22 +22,42 @@
         <item>Завершено</item>
     </string-array>
 
-    <!-- General & Buttons -->
     <string name="action_edit">Редагувати</string>
     <string name="action_delete">Видалити</string>
-    <string name="delete_button_text">Видалити</string>
-    <string name="cancel_button_text">Скасувати</string>
-    <string name="dialog_yes">Так</string>
-    <string name="dialog_no">Ні</string>
+    <string name="action_reschedule">Перенести</string>
+    <string name="action_mark_completed">Позначити як завершену</string>
+    <string name="action_mark_cancelled">Позначити як скасовану</string>
+    <string name="action_mark_no_show">Позначити як неявку</string>
+
+    <string name="contacts_permission_denied">Дозвіл на читання контактів відхилено.</string>
+    <string name="contacts_permission_title">Дозвіл на контакти</string>
+    <string name="contacts_permission_message">Для імпорту клієнтів з вашої телефонної книги застосунку потрібен доступ до контактів.</string>
+    <string name="contacts_permission_grant_button">Надати</string>
+    <string name="contact_details_not_found">Не вдалося отримати ім\'я або номер телефону контакту.</string>
+    <string name="contact_no_phone_number">У вибраного контакту немає номера телефону.</string>
+    <string name="contact_phone_query_error">Помилка при запиті даних телефону контакту.</string>
+    <string name="contact_id_not_found">Не вдалося отримати ID контакту.</string>
+    <string name="permission_required_title">Потрібен дозвіл</string>
+    <string name="permission_required_message">Для імпорту контактів потрібен дозвіл на доступ до контактів. Будь ласка, надайте його в налаштуваннях застосунку.</string>
+    <string name="go_to_settings_button">Перейти до налаштувань</string>
+
     <string name="save_service_button">Зберегти послугу</string>
-    <string name="save_appointment_button">Зберегти запис</string>
+    <string name="save_appointment_button_text">Зберегти запис</string>
     <string name="add_new_client_button">Додати нового клієнта</string>
     <string name="select_date_button">Вибрати дату</string>
     <string name="select_time_button">Вибрати час</string>
-    <string name="button_book_slot_text">Записати</string>
+    <string name="book_button_text">Забронювати</string>
+    <string name="delete_button_text">Видалити</string>
+    <string name="cancel_button_text">Скасувати</string>
+    <string name="appointment_status_prefix">Статус: %s</string>
+    <string name="service_deleted_toast">Послугу %s видалено.</string>
     <string name="create_appointment_button_text">Створити запис</string>
-
-    <!-- Hints & Descriptions -->
+    <string name="add_client_description">Додати нового клієнта</string>
+    <string name="service_hint">Выберите услугу</string>
+    <string name="delete_client_confirmation_title">Видалити клієнта?</string>
+    <string name="delete_client_confirmation_message">Ви впевнені, що хочете видалити клієнта %s?</string>
+    <string name="client_notes_hint">Нотатки про клієнта</string>
+    <string name="search_clients_hint">Пошук клієнтів...</string>
     <string name="search_client_hint">Пошук за ім\'ям або телефоном</string>
     <string name="search_service_hint">Пошук за назвою послуги</string>
     <string name="add_client_content_description">Додати клієнта</string>
@@ -39,8 +66,25 @@
     <string name="next_day_content_description">Наступний день</string>
     <string name="select_client_hint">Оберіть клієнта</string>
     <string name="select_service_hint">Оберіть послугу</string>
+    <string name="appointment_duration_hint">Тривалість (хв)</string>
+    <string name="appointment_price_hint">Вартість (грн)</string>
+    <string name="notes_hint">Нотатки</string>
+    <string name="date_hint">Дата</string>
+    <string name="time_hint">Час</string>
+    <string name="service_name_required_hint">Назва послуги (обов\'язково)</string>
+    <string name="service_base_price_hint">Базова вартість (грн)</string>
+    <string name="service_duration_minutes_hint">Тривалість (хвилини)</string>
+    <string name="service_category_hint">Категорія</string>
+    <string name="select_category_hint">Виберіть категорію або введіть нову</string>
+    <string name="service_custom_category_hint">Введіть нову категорію</string>
+    <string name="service_active_switch">Активна</string>
+    <string name="service_status_description">Статус послуги</string>
+    <string name="edit_service_description">Редагувати послугу</string>
+    <string name="delete_service_description">Видалити послугу</string>
+    <string name="edit_appointment_description">Редагувати запис</string>
+    <string name="delete_appointment_description">Видалити запис</string>
 
-    <!-- Dialogs & Toasts -->
+
     <string name="action_dialog_title">Дії з записом</string>
     <string name="delete_confirmation_title">Підтвердження видалення</string>
     <string name="delete_confirmation_message">Ви впевнені, що хочете видалити цей запис?</string>
@@ -48,19 +92,45 @@
     <string name="delete_client_dialog_message">Ви впевнені, що хочете видалити клієнта %1$s? Всі його записи будуть збережені, але клієнт буде видалений зі списку.</string>
     <string name="delete_service_dialog_title">Видалити послугу</string>
     <string name="delete_service_dialog_message">Послуга \"%1$s\" використовується в X записах. Видалення призведе до втрати зв\'язку з цими записами. Продовжити?</string>
+    <string name="dialog_yes">Так</string>
+    <string name="dialog_no">Ні</string>
+
+    <string name="client_name_empty_error">Ім\'я не може бути порожнім</string>
+    <string name="phone_format_error_flexible">Некоректний формат телефону (наприклад, 0961234567)</string>
+
     <string name="client_added_toast">Клієнт доданий</string>
     <string name="client_updated_toast">Клієнт оновлений</string>
+    <string name="client_deleted_toast">Клієнта %s видалено.</string>
+    <string name="client_name_phone_empty_error">Будь ласка, введіть ім\'я та телефон клієнта.</string>
     <string name="service_added_toast">Послугу додано</string>
     <string name="service_updated_toast">Послугу оновлено</string>
-    <string name="appointment_created_toast">Запис успішно створено!</string>
-    <string name="appointment_updated_toast">Запис успішно оновлено!</string>
+    <string name="appointment_rescheduled_toast">Запис перенесено.</string>
+    <string name="appointment_status_updated_toast">Статус запису оновлено.</string>
+    <string name="appointment_added_toast">Запис додано.</string>
+    <string name="appointment_updated_toast">Запис оновлено.</string>
     <string name="service_invalid_data_toast">Некоректні дані для ціни або тривалості</string>
-    <string name="toast_select_client_service">Будь ласка, оберіть клієнта та послугу</string>
-    <string name="toast_past_time_error">Неможливо створити запис на минулий час</string>
-    <string name="toast_conflicting_appointment">Обраний час перетинається з існуючими записами</string>
+    <string name="toast_select_client_service">Будь ласка, оберіть клієнта та послугу.</string>
+    <string name="toast_past_time_error">Неможливо створити запис на минулий час.</string>
+    <string name="toast_conflicting_appointment">Обраний час перетинається з існуючими записами.</string>
+    <string name="appointment_created_toast">Запис успішно створено!</string>
+    <string name="past_appointment_error">Неможливо створити запис на минулий час.</string>
+    <string name="conflicting_appointment_error">Запис на цей час вже існує.</string>
+    <string name="appointment_fields_empty_error">Будь ласка, заповніть усі обов\'язкові поля запису.</string>
+    <string name="appointment_invalid_numeric_error">Тривалість має бути цілим числом більше 0, вартість - невід\'ємним числом.</string>
+    <string name="service_category_empty_error">Будь ласка, оберіть або введіть категорію.</string>
+    <string name="service_invalid_numeric_error">Тривалість має бути цілим числом більше 0, вартість - невід\'ємним числом.</string>
 
-    <!-- Labels & Info Text -->
-    <string name="occupied_slot_info_full">%1$s (%2$s), Вартість: %3$s грн</string>
+    <string name="client_hint">Клієнт</string>
+    <string name="service_prefix">Послуга: %s</string>
+    <string name="cost_prefix">Вартість: %d грн</string>
+    <string name="status_prefix">Статус: %s</string>
+    <string name="client_prefix">Клієнт: %s</string>
+    <string name="unknown_client">Невідомий клієнт</string>
+    <string name="unknown_service">Невідома послуга</string>
+    <string name="no_data">Немає даних</string>
+    <string name="select_date">Виберіть дату</string>
+    <string name="select_time">Виберіть час</string>
+    <string name="occupied_slot_info_full">%1$s (%2$s), Вартість: %3$d грн</string>
     <string name="select_client_label">Вибір клієнта:</string>
     <string name="select_service_label">Вибір послуги:</string>
     <string name="select_date_time_label">Вибір дати та часу:</string>
@@ -72,31 +142,10 @@
     <string name="occupied_slot_info_prefix">Зайнято:</string>
     <string name="unknown_client_service">Невідомо</string>
     <string name="selected_date_time_format">Обрано: %1$s, %2$s</string>
-    <string name="total_cost_sunday_format">Загальна вартість (неділя): %.2f</string>
-    <string name="total_cost_format">Загальна вартість: %.2f</string>
-    <string name="total_cost_default">Підсумкова вартість: 0.00 грн</string>
+    <string name="total_cost_sunday_format">Загальна вартість (неділя): %d</string>
+    <string name="total_cost_format">Загальна вартість: %d</string>
+    <string name="total_cost_default">Підсумкова вартість: 0 грн</string>
 
-    <!-- Validation Errors -->
-    <string name="phone_format_error_flexible">Некоректний формат телефону (наприклад, 0961234567)</string>
-    <string name="phone_format_error">Некоректний формат телефону (+380XXXXXXXXX)</string>
-    <string name="client_name_empty_error">Ім\'я не може бути порожнім</string>
-    <string name="service_name_empty_error">Назва послуги не може бути порожньою</string>
-    <string name="service_price_empty_error">Ціна не може бути порожньою</string>
-    <string name="service_duration_empty_error">Тривалість не може бути порожньою</string>
-    <string name="service_category_empty_error">Категорія не може бути порожньою</string>
-    <string name="select_client_service_error">Будь ласка, оберіть клієнта та послугу.</string>
-    <string name="past_appointment_error">Неможливо створити запис на минулий час.</string>
-    <string name="conflicting_appointment_error">Запис на цей час вже існує.</string>
-
-    <!-- Add/Edit Service Screen -->
-    <string name="service_name_required_hint">Назва послуги (обов\'язково)</string>
-    <string name="service_base_price_hint">Базова ціна (грн)</string>
-    <string name="service_duration_minutes_hint">Тривалість (хвилини)</string>
-    <string name="service_category_hint">Категорія</string>
-    <string name="service_custom_category_hint">Введіть нову категорію</string>
-    <string name="service_active_switch">Активна</string>
-
-    <!-- Backup & Restore -->
     <string name="backup_button">Резервне копіювання</string>
     <string name="restore_button">Відновлення</string>
     <string name="backup_success">Базу даних успішно збережено</string>

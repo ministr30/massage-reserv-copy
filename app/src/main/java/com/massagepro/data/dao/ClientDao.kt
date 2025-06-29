@@ -3,6 +3,7 @@ package com.massagepro.data.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.massagepro.data.model.Client
@@ -16,10 +17,10 @@ interface ClientDao {
     @Query("SELECT * FROM clients WHERE id = :clientId")
     suspend fun getClientById(clientId: Int): Client?
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertClient(client: Client)
 
-    @Update
+    @Update(onConflict = OnConflictStrategy.REPLACE)
     suspend fun updateClient(client: Client)
 
     @Delete
@@ -28,5 +29,3 @@ interface ClientDao {
     @Query("SELECT * FROM clients WHERE name LIKE :query OR phone LIKE :query ORDER BY name ASC")
     fun searchClients(query: String): Flow<List<Client>>
 }
-
-

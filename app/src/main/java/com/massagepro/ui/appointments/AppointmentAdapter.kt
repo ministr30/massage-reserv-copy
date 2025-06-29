@@ -1,4 +1,3 @@
-
 package com.massagepro.ui.appointments
 
 import android.view.LayoutInflater
@@ -6,21 +5,15 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.massagepro.data.model.Appointment
-import com.massagepro.data.model.Client
-import com.massagepro.data.model.Service
+import com.massagepro.data.model.AppointmentWithClientAndService
 import com.massagepro.databinding.ItemAppointmentBinding
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
+import com.massagepro.R
 
-data class AppointmentDisplayItem(
-    val appointment: Appointment,
-    val client: Client?,
-    val service: Service?
-)
-
-class AppointmentAdapter(private val onAppointmentClick: (AppointmentDisplayItem) -> Unit, private val onEditClick: (AppointmentDisplayItem) -> Unit, private val onDeleteClick: (AppointmentDisplayItem) -> Unit) :
-    ListAdapter<AppointmentDisplayItem, AppointmentAdapter.AppointmentViewHolder>(AppointmentDiffCallback()) {
+class AppointmentAdapter(private val onAppointmentClick: (AppointmentWithClientAndService) -> Unit) :
+    ListAdapter<AppointmentWithClientAndService, AppointmentAdapter.AppointmentViewHolder>(AppointmentDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AppointmentViewHolder {
         val binding = ItemAppointmentBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -28,36 +21,37 @@ class AppointmentAdapter(private val onAppointmentClick: (AppointmentDisplayItem
     }
 
     override fun onBindViewHolder(holder: AppointmentViewHolder, position: Int) {
-        val item = getItem(position)
-        holder.bind(item)
+        val appointment = getItem(position)
+        holder.bind(appointment, onAppointmentClick)
     }
 
-    inner class AppointmentViewHolder(private val binding: ItemAppointmentBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(item: AppointmentDisplayItem) {
+    class AppointmentViewHolder(private val binding: ItemAppointmentBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind(appointmentWithDetails: AppointmentWithClientAndService, onAppointmentClick: (AppointmentWithClientAndService) -> Unit) {
+            val clientNameText = binding.root.context.getString(R.string.client_prefix, appointmentWithDetails.clientName)
+            val serviceNameText = binding.root.context.getString(R.string.service_prefix, appointmentWithDetails.serviceName)
+
+            binding.textViewClientName.text = clientNameText
+            binding.textViewServiceName.text = serviceNameText
+
             val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
-            val startTimeFormatted = dateFormat.format(item.appointment.startTime)
-            val endTimeFormatted = dateFormat.format(item.appointment.endTime)
+            binding.textViewDateTime.text = dateFormat.format(Date(appointmentWithDetails.appointment.dateTime))
 
-            binding.textViewAppointmentDateTime.text = "$startTimeFormatted - $endTimeFormatted"
-            binding.textViewAppointmentClient.text = "Клиент: ${item.client?.name ?: "Неизвестно"} (${item.client?.phone ?: ""})"
-            binding.textViewAppointmentService.text = "Услуга: ${item.service?.name ?: "Неизвестно"} (${item.service?.duration ?: 0} мин)"
-            binding.textViewAppointmentCostStatus.text = "Стоимость: %.2f грн (%s)".format(item.appointment.totalCost, item.appointment.status)
+            val costText = binding.root.context.getString(R.string.cost_prefix, "%.2f".format(appointmentWithDetails.appointment.servicePrice))
+            val statusText = binding.root.context.getString(R.string.status_prefix, appointmentWithDetails.appointment.status)
+            binding.textViewAppointmentCostStatus.text = "$costText ($statusText)"
 
-            binding.root.setOnClickListener { onAppointmentClick(item) }
-            binding.imageButtonEditAppointment.setOnClickListener { onEditClick(item) }
-            binding.imageButtonDeleteAppointment.setOnClickListener { onDeleteClick(item) }
+
+            binding.root.setOnClickListener { onAppointmentClick(appointmentWithDetails) }
         }
     }
 
-    private class AppointmentDiffCallback : DiffUtil.ItemCallback<AppointmentDisplayItem>() {
-        override fun areItemsTheSame(oldItem: AppointmentDisplayItem, newItem: AppointmentDisplayItem): Boolean {
+    private class AppointmentDiffCallback : DiffUtil.ItemCallback<AppointmentWithClientAndService>() {
+        override fun areItemsTheSame(oldItem: AppointmentWithClientAndService, newItem: AppointmentWithClientAndService): Boolean {
             return oldItem.appointment.id == newItem.appointment.id
         }
 
-        override fun areContentsTheSame(oldItem: AppointmentDisplayItem, newItem: AppointmentDisplayItem): Boolean {
+        override fun areContentsTheSame(oldItem: AppointmentWithClientAndService, newItem: AppointmentWithClientAndService): Boolean {
             return oldItem == newItem
         }
     }
 }
-
-

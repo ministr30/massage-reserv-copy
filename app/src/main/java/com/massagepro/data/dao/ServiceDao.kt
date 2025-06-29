@@ -1,9 +1,9 @@
-
 package com.massagepro.data.dao
 
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.massagepro.data.model.Service
@@ -17,10 +17,10 @@ interface ServiceDao {
     @Query("SELECT * FROM services WHERE id = :serviceId")
     suspend fun getServiceById(serviceId: Int): Service?
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertService(service: Service)
 
-    @Update
+    @Update(onConflict = OnConflictStrategy.REPLACE)
     suspend fun updateService(service: Service)
 
     @Delete
@@ -29,8 +29,6 @@ interface ServiceDao {
     @Query("SELECT * FROM services WHERE category = :category ORDER BY name ASC")
     fun getServicesByCategory(category: String): Flow<List<Service>>
 
-    @Query("SELECT DISTINCT category FROM services")
+    @Query("SELECT DISTINCT category FROM services ORDER BY category ASC")
     fun getAllCategories(): Flow<List<String>>
 }
-
-

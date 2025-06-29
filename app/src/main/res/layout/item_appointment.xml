@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -16,8 +17,7 @@
         android:padding="16dp">
 
         <TextView
-            android:id="@+id/text_view_appointment_date_time"
-            android:layout_width="0dp"
+            android:id="@+id/text_view_date_time" android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:textSize="16sp"
             android:textStyle="bold"
@@ -27,24 +27,22 @@
             tools:text="21.06.2025 10:00 - 11:00" />
 
         <TextView
-            android:id="@+id/text_view_appointment_client"
-            android:layout_width="0dp"
+            android:id="@+id/text_view_client_name" android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/text_view_appointment_date_time"
-            tools:text="Клиент: Иван Иванов (+380991234567)" />
+            app:layout_constraintTop_toBottomOf="@+id/text_view_date_time"
+            tools:text="Клієнт: Іван Іванов (+380991234567)" />
 
         <TextView
-            android:id="@+id/text_view_appointment_service"
-            android:layout_width="0dp"
+            android:id="@+id/text_view_service_name" android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/text_view_appointment_client"
-            tools:text="Услуга: Классический массаж (60 мин)" />
+            app:layout_constraintTop_toBottomOf="@+id/text_view_client_name"
+            tools:text="Послуга: Класичний масаж (60 хв)" />
 
         <TextView
             android:id="@+id/text_view_appointment_cost_status"
@@ -54,16 +52,15 @@
             android:textStyle="bold"
             app:layout_constraintEnd_toStartOf="@+id/image_button_edit_appointment"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/text_view_appointment_service"
-            tools:text="Стоимость: 500 грн (Запланировано)" />
+            app:layout_constraintTop_toBottomOf="@+id/text_view_service_name"
+            tools:text="Вартість: 500 грн (Заплановано)" />
 
         <ImageButton
             android:id="@+id/image_button_edit_appointment"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Редактировать запись"
-            android:padding="8dp"
+            android:contentDescription="@string/edit_appointment_description" android:padding="8dp"
             app:layout_constraintBottom_toBottomOf="@+id/text_view_appointment_cost_status"
             app:layout_constraintEnd_toStartOf="@+id/image_button_delete_appointment"
             app:layout_constraintTop_toTopOf="@+id/text_view_appointment_cost_status"
@@ -74,8 +71,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Удалить запись"
-            android:padding="8dp"
+            android:contentDescription="@string/delete_appointment_description" android:padding="8dp"
             app:layout_constraintBottom_toBottomOf="@+id/text_view_appointment_cost_status"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@+id/text_view_appointment_cost_status"
@@ -84,4 +80,3 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.cardview.widget.CardView>
-
