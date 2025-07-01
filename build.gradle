@@ -1,7 +1,7 @@
 buildscript {
     ext {
         kotlin_version = '1.9.22' // Оставляем 1.9.22
-        gradle_version = '8.3.0'  // Оставляем 8.3.0
+        gradle_version = '8.10.1'  // Оставляем 8.3.0
     }
     repositories {
         google()
@@ -16,13 +16,7 @@ buildscript {
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
 
-task clean(type: Delete) {
-    delete rootProject.buildDir
+tasks.register('clean', Delete) {
+    delete layout.buildDirectory.get().asFile
 }

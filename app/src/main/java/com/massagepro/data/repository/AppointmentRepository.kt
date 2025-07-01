@@ -10,12 +10,13 @@ class AppointmentRepository(
     private val appointmentDao: AppointmentDao,
     private val serviceRepository: ServiceRepository
 ) {
-    fun getAllAppointments(): Flow<List<Appointment>> {
-        return appointmentDao.getAllAppointments()
+    // ИЗМЕНЕНО: Сигнатура метода изменена для возврата Flow<List<AppointmentWithClientAndService>>
+    fun getAllAppointments(): Flow<List<AppointmentWithClientAndService>> {
+        return appointmentDao.getAppointmentsWithClientAndService()
     }
-	suspend fun getAppointmentById(id: Int): Appointment? {
-		return appointmentDao.getAppointmentById(id)
-	}
+    suspend fun getAppointmentById(id: Int): Appointment? {
+        return appointmentDao.getAppointmentById(id)
+    }
 
     suspend fun insertAppointment(appointment: Appointment) {
         appointmentDao.insertAppointment(appointment)

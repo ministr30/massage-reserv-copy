@@ -6,6 +6,8 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Transaction
+import androidx.room.RewriteQueriesToDropUnusedColumns
 import com.massagepro.data.model.Appointment
 import com.massagepro.data.model.AppointmentWithClientAndService
 import kotlinx.coroutines.flow.Flow
@@ -27,9 +29,8 @@ interface AppointmentDao {
     @Delete
     suspend fun deleteAppointment(appointment: Appointment)
 
-    // Запрос для получения всех записей с именами клиента и услуги
-    // ИСПРАВЛЕНО: Добавлены явные псевдонимы 'appt_' для полей таблицы appointments,
-    // чтобы избежать конфликтов имен с clients.name и services.name
+    @Transaction
+    @RewriteQueriesToDropUnusedColumns
     @Query("""
         SELECT
             a.id AS appt_id,
@@ -45,17 +46,14 @@ interface AppointmentDao {
             s.name AS serviceName
         FROM
             appointments a
-        INNER JOIN
-            clients c ON a.clientId = c.id
-        INNER JOIN
-            services s ON a.serviceId = s.id
-        ORDER BY
-            a.dateTime ASC
+        INNER JOIN clients c ON a.clientId = c.id
+        INNER JOIN services s ON a.serviceId = s.id
+        ORDER BY a.dateTime ASC
     """)
     fun getAppointmentsWithClientAndService(): Flow<List<AppointmentWithClientAndService>>
 
-    // Запрос для получения записей за определенный день с именами клиента и услуги
-    // ИСПРАВЛЕНО: Добавлены явные псевдонимы 'appt_' для полей таблицы appointments
+    @Transaction
+    @RewriteQueriesToDropUnusedColumns
     @Query("""
         SELECT
             a.id AS appt_id,
@@ -71,29 +69,19 @@ interface AppointmentDao {
             s.name AS serviceName
         FROM
             appointments a
-        INNER JOIN
-            clients c ON a.clientId = c.id
-        INNER JOIN
-            services s ON a.serviceId = s.id
-        WHERE
-            a.dateTime BETWEEN :startOfDayMillis AND :endOfDayMillis
-        ORDER BY
-            a.dateTime ASC
+        INNER JOIN clients c ON a.clientId = c.id
+        INNER JOIN services s ON a.serviceId = s.id
+        WHERE a.dateTime BETWEEN :startOfDayMillis AND :endOfDayMillis
+        ORDER BY a.dateTime ASC
     """)
     fun getAppointmentsForDay(startOfDayMillis: Long, endOfDayMillis: Long): Flow<List<AppointmentWithClientAndService>>
 
-    // Метод для проверки конфликтов времени, использующий dateTime и serviceDuration
-    // ИСПРАВЛЕНО: Запрос для проверки конфликтов
+    // Добавь аннотацию @Query с реальным SQL, если нужно, иначе оставь suspend fun без тела
+    // Пример заглушки, замени под свою логику
     @Query("""
-        SELECT * FROM appointments 
-        WHERE 
-            id != :excludeAppointmentId AND 
-            (
-                (:newStart < (dateTime + serviceDuration * 60 * 1000) AND :newEnd > dateTime) 
-                OR 
-                (:newStart = dateTime AND :newEnd = (dateTime + serviceDuration * 60 * 1000))
-            )
+        SELECT * FROM appointments
+        WHERE (:newStart < dateTime + serviceDuration) AND (:newEnd > dateTime)
+        AND id != :excludeAppointmentId
     """)
     suspend fun getConflictingAppointments(newStart: Long, newEnd: Long, excludeAppointmentId: Int): List<Appointment>
-
 }

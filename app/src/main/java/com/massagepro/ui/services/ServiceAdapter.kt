@@ -1,7 +1,6 @@
 package com.massagepro.ui.services
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -9,8 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.massagepro.data.model.Service
 import com.massagepro.databinding.ItemServiceBinding
 import com.massagepro.R
-import java.text.NumberFormat
-import java.util.Locale
+
 
 class ServiceAdapter(
     private val onServiceClick: (Service) -> Unit,
@@ -34,18 +32,11 @@ class ServiceAdapter(
         fun bind(service: Service, onServiceClick: (Service) -> Unit, onEditClick: (Service) -> Unit, onDeleteClick: (Service) -> Unit) {
             binding.textViewServiceName.text = service.name
 
-            // ЗМІНЕНО: Отображаем basePrice как Int (без копеек)
-            binding.textViewServiceDetails.text =
-                "${service.basePrice} грн, ${service.duration} хв"
-
-            // Отображение статуса активности
-            if (service.isActive) {
-                binding.imageViewServiceStatus.setImageResource(R.drawable.ic_status_active)
-                binding.imageViewServiceStatus.visibility = View.VISIBLE
-            } else {
-                binding.imageViewServiceStatus.setImageResource(R.drawable.ic_status_inactive)
-                binding.imageViewServiceStatus.visibility = View.VISIBLE
-            }
+            binding.textViewServiceDetails.text = binding.root.context.getString(
+                R.string.service_details_format,
+                service.basePrice,
+                service.duration
+            )
 
             binding.root.setOnClickListener { onServiceClick(service) }
             binding.imageButtonEditService.setOnClickListener { onEditClick(service) }

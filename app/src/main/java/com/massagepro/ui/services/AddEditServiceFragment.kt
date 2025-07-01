@@ -15,7 +15,6 @@ import com.massagepro.R
 import com.massagepro.data.model.Service
 import com.massagepro.data.repository.ServiceRepository
 import kotlinx.coroutines.launch
-import com.google.android.material.switchmaterial.SwitchMaterial
 
 class AddEditServiceFragment : Fragment() {
 
@@ -23,23 +22,24 @@ class AddEditServiceFragment : Fragment() {
     private lateinit var editTextServicePrice: EditText
     private lateinit var editTextServiceDuration: EditText
     private lateinit var autoCompleteServiceCategory: AutoCompleteTextView
-    // private lateinit var editTextCustomCategory: EditText
-    // private lateinit var textInputCustomCategory: View
-    private lateinit var switchServiceActive: SwitchMaterial
+    // УДАЛЕНО: private lateinit var editTextCustomCategory: EditText
+    // УДАЛЕНО: private lateinit var textInputCustomCategory: View
+    // УДАЛЕНО: private lateinit var switchServiceActive: SwitchMaterial
     private lateinit var buttonSaveService: Button
 
     // Обновлено: Категории "Обгортання" и "Ендосфера" добавлены в список
+    // УДАЛЕНО: Категория "Інше" удалена из списка
     private val predefinedCategories = listOf(
         "Класичний",
         "Антицелюлітний",
         "Спортивний",
+        "Розслабляючий",
         "Лікувальний",
         "Апаратний",
-        "Обгортання",
-        "Ендосфера",
         "Дитячий",
         "Масаж обличчя",
-        "Розслабляючий"
+        "Обгортання",
+        "Ендосфера"
     )
 
     private val viewModel: ServicesViewModel by viewModels {
@@ -58,9 +58,9 @@ class AddEditServiceFragment : Fragment() {
         editTextServicePrice = view.findViewById(R.id.edit_text_service_price)
         editTextServiceDuration = view.findViewById(R.id.edit_text_service_duration)
         autoCompleteServiceCategory = view.findViewById(R.id.autoCompleteServiceCategory)
-        // editTextCustomCategory = view.findViewById(R.id.edit_text_custom_category)
-        // textInputCustomCategory = view.findViewById(R.id.text_input_custom_category)
-        switchServiceActive = view.findViewById(R.id.switch_service_active)
+        // УДАЛЕНО: editTextCustomCategory = view.findViewById(R.id.edit_text_custom_category)
+        // УДАЛЕНО: textInputCustomCategory = view.findViewById(R.id.text_input_custom_category)
+        // УДАЛЕНО: switchServiceActive = view.findViewById(R.id.switch_service_active)
         buttonSaveService = view.findViewById(R.id.button_save_service)
         return view
     }
@@ -71,7 +71,7 @@ class AddEditServiceFragment : Fragment() {
         val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, predefinedCategories)
         autoCompleteServiceCategory.setAdapter(adapter)
 
-        // Логика onItemClickListener, связанная с "Інше" и textInputCustomCategory, была удалена ранее.
+        // УДАЛЕНО: Логика onItemClickListener, связанная с "Інше" и textInputCustomCategory, была удалена ранее.
 
         val serviceId = args.serviceId
         if (serviceId != -1) {
@@ -80,7 +80,7 @@ class AddEditServiceFragment : Fragment() {
                     editTextServiceName.setText(service.name)
                     editTextServicePrice.setText(service.basePrice.toString())
                     editTextServiceDuration.setText(service.duration.toString())
-                    switchServiceActive.isChecked = service.isActive
+                    // УДАЛЕНО: switchServiceActive.isChecked = service.isActive
                     // Логика для существующей услуги, если категория не из предопределенных
                     if (predefinedCategories.contains(service.category)) {
                         autoCompleteServiceCategory.setText(service.category, false)
@@ -94,7 +94,7 @@ class AddEditServiceFragment : Fragment() {
                 }
             }
         } else {
-            switchServiceActive.isChecked = true
+            // УДАЛЕНО: switchServiceActive.isChecked = true
         }
 
         buttonSaveService.setOnClickListener { saveService() }
@@ -104,7 +104,7 @@ class AddEditServiceFragment : Fragment() {
         val name = editTextServiceName.text.toString().trim()
         val priceString = editTextServicePrice.text.toString().trim()
         val durationString = editTextServiceDuration.text.toString().trim()
-        val isActive = switchServiceActive.isChecked
+        val isActive = true // ИЗМЕНЕНО: Всегда считаем услугу активной, так как переключатель удален
 
         // Больше не проверяем на "Інше", так как этой категории нет
         val category = autoCompleteServiceCategory.text.toString().trim()

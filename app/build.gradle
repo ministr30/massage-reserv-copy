@@ -1,26 +1,22 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
-    // id 'com.google.devtools.ksp' // ОТКЛЮЧАЕМ KSP
-    id 'kotlin-kapt' // ✅ ДОБАВЛЕНО: ОБЯЗАТЕЛЬНО ИСПОЛЬЗУЕМ KAPT!
-    id 'androidx.navigation.safeargs.kotlin'
+    id 'kotlin-kapt' // Добавьте, если еще нет, для Room/ViewModel
+    id 'androidx.navigation.safeargs.kotlin' // Если используете Safe Args
 }
 
 android {
     namespace 'com.massagepro'
-    compileSdk 34
+    compileSdk 34 // Или ваша текущая compileSdk
 
     defaultConfig {
-        applicationId 'com.massagepro'
-        minSdk 26
-        targetSdk 34
+        applicationId "com.massagepro"
+        minSdk 24 // Или ваша текущая minSdk
+        targetSdk 34 // Или ваша текущая targetSdk
         versionCode 1
-        versionName '1.0'
+        versionName "1.0"
 
-        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
-        vectorDrawables {
-            useSupportLibrary true
-        }
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -30,58 +26,47 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
     kotlinOptions {
-        jvmTarget = '1.8'
-        languageVersion = '1.9'
-        apiVersion = '1.9'
+        jvmTarget = '11'
     }
     buildFeatures {
-        viewBinding true
+        viewBinding true // Убедитесь, что viewBinding включен, так как вы его используете
     }
-
-    // ✅ ОТКЛЮЧАЕМ/УДАЛЯЕМ блок ksp {}
-    /*
-    ksp {
-        arg("room.schemaLocation", "$projectDir/schemas")
-        arg("room.incremental", "true")
-        arg("room.expandProjection", "true")
-    }
-    */
 }
 
 dependencies {
 
-    implementation 'androidx.core:core-ktx:1.10.1'
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.1'
-    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.6.1'
+    implementation 'androidx.core:core-splashscreen:1.0.1'
+
+    implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.12.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    implementation 'androidx.navigation:navigation-fragment-ktx:2.7.7'
+    implementation 'androidx.navigation:navigation-ui-ktx:2.7.7'
 
     // Room components
     implementation 'androidx.room:room-runtime:2.6.1'
-    // ksp 'androidx.room:room-compiler:2.6.1' // ОТКЛЮЧАЕМ KSP компилятор
-    kapt 'androidx.room:room-compiler:2.6.1' // ✅ ИСПОЛЬЗУЕМ KAPT компилятор
-    implementation 'androidx.room:room-ktx:2.6.1'
+    kapt 'androidx.room:room-compiler:2.6.1'
+    implementation 'androidx.room:room-ktx:2.6.1' // Для корутин с Room
 
-    // Material Design
-    implementation 'com.google.android.material:material:1.11.0'
-    implementation 'androidx.core:core-splashscreen:1.0.1'
+    // Lifecycle components
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.0'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.8.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.0'
+    implementation 'androidx.fragment:fragment-ktx:1.7.1' // Для by viewModels()
 
-    // Navigation Component
-    implementation 'androidx.navigation:navigation-fragment-ktx:2.6.0'
-    implementation 'androidx.navigation:navigation-ui-ktx:2.6.0'
-
-    // Kotlin Coroutines
+    // Coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
 
-    // For export to CSV (example, can be changed later)
-    implementation 'com.opencsv:opencsv:5.9'
+    // MPAndroidChart - ДОБАВЛЕНО
+    implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
 
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }

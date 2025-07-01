@@ -10,7 +10,6 @@ import com.massagepro.data.model.Appointment
 import com.massagepro.data.model.Client
 import com.massagepro.data.model.Service
 import androidx.room.Room
-import kotlinx.coroutines.CoroutineScope
 import android.content.Context
 
 @Database(entities = [Client::class, Service::class, Appointment::class], version =9, exportSchema = false) // Версия увеличена до 6
@@ -24,7 +23,8 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
-        fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
+        // ИЗМЕНЕНО: Удален неиспользуемый параметр 'scope'
+        fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,

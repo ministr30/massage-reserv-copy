@@ -8,6 +8,8 @@ import com.massagepro.data.model.Client
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+// Добавлены аннотации @OptIn для подавления предупреждений
+@OptIn(kotlinx.coroutines.FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ClientsViewModel(private val clientRepository: ClientRepository) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")

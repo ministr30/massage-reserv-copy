@@ -1,16 +1,20 @@
 package com.massagepro.ui.statistics
 
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+
 import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
@@ -34,15 +38,33 @@ import com.massagepro.data.repository.AppointmentRepository
 import com.massagepro.data.repository.ClientRepository
 import com.massagepro.data.repository.ServiceRepository
 
+// Импорты для MPAndroidChart
+import com.github.mikephil.charting.charts.BarChart
+import com.github.mikephil.charting.charts.PieChart
+import com.github.mikephil.charting.data.BarData
+import com.github.mikephil.charting.data.BarDataSet
+import com.github.mikephil.charting.data.BarEntry
+import com.github.mikephil.charting.data.PieData
+import com.github.mikephil.charting.data.PieDataSet
+import com.github.mikephil.charting.data.PieEntry
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.formatter.ValueFormatter
+import com.github.mikephil.charting.components.Legend
+import com.github.mikephil.charting.components.LegendEntry
+
+// Импорты для ChipGroup
+import com.google.android.material.chip.ChipGroup
+
+
 class StatisticsFragment : Fragment() {
 
     private var _binding: FragmentStatisticsBinding? = null
     private val binding get() = _binding!!
-    // ИСПРАВЛЕНО: Теперь ViewModelFactory инициализируется репозиториями, а не DAO
     private val viewModel: StatisticsViewModel by viewModels {
         val database = (requireActivity().application as App).database
         StatisticsViewModelFactory(
-            AppointmentRepository(database.appointmentDao(), ServiceRepository(database.serviceDao())), // AppointmentRepo теперь нужен ServiceRepo
+            AppointmentRepository(database.appointmentDao(), ServiceRepository(database.serviceDao())),
             ClientRepository(database.clientDao()),
             ServiceRepository(database.serviceDao())
         )
@@ -53,6 +75,14 @@ class StatisticsFragment : Fragment() {
 
     private lateinit var backupLauncher: ActivityResultLauncher<String>
     private lateinit var restoreLauncher: ActivityResultLauncher<Array<String>>
+
+    // Объявляем переменные для графиков
+    private lateinit var barChartAppointments: BarChart
+    private lateinit var pieChartRevenueByCategory: PieChart
+
+    // Объявляем ChipGroup
+    private lateinit var chipGroupPeriod: ChipGroup
+    private lateinit var currentGrouping: GroupingInterval
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -90,10 +120,50 @@ class StatisticsFragment : Fragment() {
             insets
         }
 
+        // Инициализация графиков
+        barChartAppointments = binding.barChartAppointments
+        pieChartRevenueByCategory = binding.pieChartRevenueByCategory
+
+        // Инициализация ChipGroup
+        chipGroupPeriod = binding.chipGroupPeriod
+        currentGrouping = GroupingInterval.DAY // Устанавливаем группировку по умолчанию
+
         setupDatePickers()
         setupActionButtons()
+        setupCharts()
+        setupChipGroup() // Вызов метода для настройки ChipGroup
         observeViewModel()
         generateStatistics()
+    }
+
+    private fun setupChipGroup() {
+        // Устанавливаем слушатель для ChipGroup
+        chipGroupPeriod.setOnCheckedStateChangeListener { _, checkedIds ->
+            if (checkedIds.isNotEmpty()) {
+                val checkedId = checkedIds[0] // Получаем ID выбранного чипа
+                updateGroupingInterval(checkedId)
+            } else {
+                // Если ни один чип не выбран (что не должно произойти с selectionRequired="true")
+                // Можно установить значение по умолчанию или ничего не делать
+                updateGroupingInterval(R.id.chip_day) // Устанавливаем по умолчанию "День"
+                chipGroupPeriod.check(R.id.chip_day)
+            }
+        }
+
+        // Устанавливаем начальное состояние (по умолчанию "День")
+        chipGroupPeriod.check(R.id.chip_day)
+    }
+
+    private fun updateGroupingInterval(checkedId: Int) {
+        currentGrouping = when (checkedId) {
+            R.id.chip_day -> GroupingInterval.DAY
+            R.id.chip_week -> GroupingInterval.WEEK
+            R.id.chip_month -> GroupingInterval.MONTH
+            R.id.chip_year -> GroupingInterval.YEAR
+            R.id.chip_all_time -> GroupingInterval.ALL_TIME
+            else -> GroupingInterval.DAY // По умолчанию
+        }
+        generateStatistics() // Перегенерируем статистику с новой группировкой
     }
 
     private fun setupActionButtons() {
@@ -128,9 +198,9 @@ class StatisticsFragment : Fragment() {
                 Toast.makeText(requireContext(), getString(R.string.backup_success), Toast.LENGTH_LONG).show()
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("StatisticsFragment", "Backup failed", e)
             withContext(Dispatchers.Main) {
-                val errorMessage = e.message ?: "Невідома помилка"
+                val errorMessage = e.message ?: "Невідома ошибка"
                 Toast.makeText(requireContext(), getString(R.string.backup_error, errorMessage), Toast.LENGTH_LONG).show()
             }
         }
@@ -179,7 +249,7 @@ class StatisticsFragment : Fragment() {
                 restartApp()
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("StatisticsFragment", "Restore failed", e)
             withContext(Dispatchers.Main) {
                 Toast.makeText(requireContext(), getString(R.string.restore_error, e.message), Toast.LENGTH_LONG).show()
             }
@@ -194,6 +264,61 @@ class StatisticsFragment : Fragment() {
         val mainIntent = Intent.makeRestartActivityTask(componentName)
         context.startActivity(mainIntent)
         exitProcess(0)
+    }
+
+    @Suppress("SetterInsteadOfProperty") // Подавляем предупреждения для MPAndroidChart сеттеров
+    private fun setupCharts() {
+        // Настройка BarChart (Количество записей по дням)
+        barChartAppointments.description.isEnabled = false
+        barChartAppointments.setDrawGridBackground(false)
+        barChartAppointments.setDrawBarShadow(false)
+        barChartAppointments.setPinchZoom(true)
+        barChartAppointments.isDoubleTapToZoomEnabled = false
+
+        // Отключаем легенду для BarChart, так как у нас только один набор данных
+        barChartAppointments.legend.isEnabled = false
+
+
+        // Настройка оси X для BarChart
+        val xAxisAppointments = barChartAppointments.xAxis
+        xAxisAppointments.position = XAxis.XAxisPosition.BOTTOM
+        xAxisAppointments.setDrawGridLines(false)
+        xAxisAppointments.setDrawLabels(true)
+        xAxisAppointments.granularity = 1f
+        xAxisAppointments.setCenterAxisLabels(false)
+        xAxisAppointments.setAvoidFirstLastClipping(true)
+
+
+        // Отключаем правую ось Y для BarChart
+        barChartAppointments.axisRight.isEnabled = false
+        // Настройка левой оси Y для BarChart
+        val yAxisAppointments = barChartAppointments.axisLeft
+        yAxisAppointments.setDrawGridLines(true)
+        yAxisAppointments.granularity = 1f
+        yAxisAppointments.axisMinimum = 0f
+
+
+        // Настройка PieChart (Выручка по категориям)
+        pieChartRevenueByCategory.description.isEnabled = false
+        pieChartRevenueByCategory.setUsePercentValues(true)
+        pieChartRevenueByCategory.setEntryLabelColor(Color.BLACK)
+        pieChartRevenueByCategory.setEntryLabelTextSize(12f)
+        pieChartRevenueByCategory.setDrawEntryLabels(false)
+        pieChartRevenueByCategory.isHighlightPerTapEnabled = true
+        pieChartRevenueByCategory.animateY(1400)
+
+        // Настройка легенды для PieChart
+        val pieLegend = pieChartRevenueByCategory.legend
+        pieLegend.verticalAlignment = Legend.LegendVerticalAlignment.TOP
+        pieLegend.horizontalAlignment = Legend.LegendHorizontalAlignment.LEFT // Исправлено
+        pieLegend.orientation = Legend.LegendOrientation.VERTICAL
+        pieLegend.setDrawInside(false)
+        pieLegend.xEntrySpace = 7f
+        pieLegend.yEntrySpace = 5f
+        pieLegend.yOffset = 0f
+        pieLegend.textSize = 12f
+        pieLegend.textColor = Color.BLACK
+        // pieLegend.wordWrapEnabled = true // Этот атрибут может быть не поддерживаем в v3.1.0 или требует определенной настройки
     }
 
     private fun setupDatePickers() {
@@ -227,21 +352,134 @@ class StatisticsFragment : Fragment() {
 
     private fun observeViewModel() {
         viewModel.totalAppointments.observe(viewLifecycleOwner) {
-            binding.textViewTotalAppointments.text = "Всього записів: $it"
+            binding.textViewTotalAppointments.text = getString(R.string.total_appointments_prefix, it)
         }
         viewModel.totalRevenue.observe(viewLifecycleOwner) {
-            binding.textViewTotalRevenueStats.text = "Загальна виручка: %d грн".format(it.toInt())
+            binding.textViewTotalRevenueStats.text = getString(R.string.total_revenue_prefix_stats, it)
         }
         viewModel.mostPopularService.observe(viewLifecycleOwner) {
-            binding.textViewMostPopularService.text = "Найпопулярніша послуга: $it"
+            binding.textViewMostPopularService.text = getString(R.string.most_popular_service_prefix, it)
         }
         viewModel.mostActiveClient.observe(viewLifecycleOwner) {
-            binding.textViewMostActiveClient.text = "Найактивніший клієнт: $it"
+            binding.textViewMostActiveClient.text = getString(R.string.most_active_client_prefix, it)
+        }
+        // Наблюдаем за данными для BarChart
+        viewModel.appointmentsByDate.observe(viewLifecycleOwner) { data ->
+            updateBarChartAppointments(data)
+        }
+        // Наблюдаем за данными для PieChart
+        viewModel.revenueByCategory.observe(viewLifecycleOwner) { data ->
+            updatePieChartRevenueByCategory(data)
         }
     }
 
+    @Suppress("SetterInsteadOfProperty") // Подавляем предупреждения для MPAndroidChart сеттеров
+    private fun updateBarChartAppointments(data: Map<String, Int>) {
+        // Управляем видимостью графика и сообщения "нет данных"
+        if (data.isEmpty()) {
+            barChartAppointments.visibility = View.GONE
+            binding.textViewNoBarChartData.visibility = View.VISIBLE
+        } else {
+            barChartAppointments.visibility = View.VISIBLE
+            binding.textViewNoBarChartData.visibility = View.GONE
+
+            val entries = ArrayList<BarEntry>()
+            val labels = ArrayList<String>()
+            var i = 0f
+            data.entries.sortedBy { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(it.key)?.time }.forEach { (date, count) ->
+                entries.add(BarEntry(i, count.toFloat()))
+                labels.add(date) // Пока используем полную дату, можно будет форматировать позже
+                i++
+            }
+
+            val dataSet = BarDataSet(entries, "Кількість записів")
+            dataSet.color = ContextCompat.getColor(requireContext(), R.color.blue_500)
+            dataSet.valueTextColor = Color.BLACK
+            dataSet.valueTextSize = 10f
+
+            val barData = BarData(dataSet)
+            barData.barWidth = 0.9f
+            barChartAppointments.data = barData
+
+            // Устанавливаем форматтер для оси X
+            barChartAppointments.xAxis.valueFormatter = IndexAxisValueFormatter(labels)
+            barChartAppointments.xAxis.labelCount = labels.size
+            barChartAppointments.xAxis.setCenterAxisLabels(false)
+
+            barChartAppointments.invalidate()
+            barChartAppointments.animateY(1000)
+        }
+    }
+
+    @Suppress("SetterInsteadOfProperty") // Подавляем предупреждения для MPAndroidChart сеттеров
+    private fun updatePieChartRevenueByCategory(data: Map<String, Int>) {
+        // Управляем видимостью графика и сообщения "нет данных"
+        if (data.isEmpty()) {
+            pieChartRevenueByCategory.visibility = View.GONE
+            binding.textViewNoPieChartData.visibility = View.VISIBLE
+        } else {
+            pieChartRevenueByCategory.visibility = View.VISIBLE
+            binding.textViewNoPieChartData.visibility = View.GONE
+
+            val entries = ArrayList<PieEntry>()
+            val colors = ArrayList<Int>()
+
+            // Генерация цветов для PieChart
+            val presetColors = mutableListOf(
+                ContextCompat.getColor(requireContext(), R.color.blue_500),
+                ContextCompat.getColor(requireContext(), R.color.teal_700),
+                ContextCompat.getColor(requireContext(), R.color.purple_500),
+                ContextCompat.getColor(requireContext(), R.color.colorBookedSlot),
+                ContextCompat.getColor(requireContext(), R.color.purple_200),
+                ContextCompat.getColor(requireContext(), R.color.teal_200),
+                ContextCompat.getColor(requireContext(), R.color.purple_700)
+            )
+            // Если количество категорий больше, чем presetColors, MPAndroidChart будет циклически использовать их.
+
+            data.forEach { (category, revenue) ->
+                entries.add(PieEntry(revenue.toFloat(), category))
+            }
+
+            val dataSet = PieDataSet(entries, "")
+            dataSet.sliceSpace = 2f
+            dataSet.selectionShift = 5f
+            // Автоматическая установка цветов, если их меньше, чем entries, будут циклически повторяться
+            for (color in presetColors) {
+                colors.add(color)
+            }
+            dataSet.colors = colors
+            dataSet.valueTextColor = Color.BLACK
+            dataSet.valueTextSize = 12f
+
+            // Форматтер для отображения процентов
+            dataSet.valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    return "%.1f%%".format(value)
+                }
+            }
+
+            val pieData = PieData(dataSet)
+            pieChartRevenueByCategory.data = pieData
+
+            // Обновляем легенду с правильными записями (категориями)
+            val legendEntries = entries.mapIndexed { index, entry ->
+                LegendEntry().apply {
+                    label = entry.label
+                    formColor = dataSet.colors[index % dataSet.colors.size]
+                    form = Legend.LegendForm.SQUARE
+                }
+            }
+            pieChartRevenueByCategory.legend.setCustom(legendEntries)
+
+            pieChartRevenueByCategory.invalidate()
+            pieChartRevenueByCategory.animateY(1400)
+        }
+    }
+
+
     private fun generateStatistics() {
-        viewModel.generateStatistics(startDate.time, endDate.time)
+        // Передаем текущую выбранную группировку в ViewModel
+        viewModel.generateStatistics(startDate.time, endDate.time, currentGrouping)
     }
 
     override fun onDestroyView() {

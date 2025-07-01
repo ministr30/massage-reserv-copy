@@ -5,8 +5,17 @@
     <color name="purple_700">#FF3700B3</color>
     <color name="teal_200">#FF03DAC5</color>
     <color name="teal_700">#FF018786</color>
+
+    <!-- Базовые цвета, которые могут быть переопределены в values-night -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Семантические цвета, используемые в темах.
+         Их значения здесь - для дневной темы.
+         В values-night/colors.xml они будут переопределены для ночной темы. -->
+    <color name="text_primary_dark_theme">@color/black</color> <!-- В дневной теме это будет черный текст -->
+    <color name="background_dark_theme">@color/white</color> <!-- В дневной теме это будет белый фон -->
+
     <color name="summary_background_color">#F0F0F0</color>
     <color name="blue_500">#2196F3</color>
     <color name="blue_700">#1976D2</color>

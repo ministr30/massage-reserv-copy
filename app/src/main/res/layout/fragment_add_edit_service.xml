@@ -98,39 +98,6 @@
             android:gravity="center_vertical"/>
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Ввод своей категории -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/text_input_custom_category"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:hint="@string/service_custom_category_hint"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/text_input_service_category_spinner_container">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/edit_text_custom_category"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="56dp"
-            android:inputType="textCapWords"
-            android:textColor="@color/black"
-            android:background="@drawable/bg_edittext_gray_rounded"/>
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <!-- Активна -->
-    <com.google.android.material.switchmaterial.SwitchMaterial
-        android:id="@+id/switch_service_active"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:checked="true"
-        android:text="@string/service_active_switch"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/text_input_service_category_spinner_container"/>
-
     <!-- Кнопка сохранить -->
     <Button
         android:id="@+id/button_save_service"
@@ -140,6 +107,6 @@
         android:text="@string/save_service_button"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/switch_service_active" />
+        app:layout_constraintTop_toBottomOf="@id/text_input_service_category_spinner_container" /> <!-- ИЗМЕНЕНО: Привязка к предыдущему элементу -->
 
 </androidx.constraintlayout.widget.ConstraintLayout>

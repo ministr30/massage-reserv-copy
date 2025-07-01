@@ -18,7 +18,6 @@ import com.google.android.material.timepicker.TimeFormat
 import com.massagepro.App
 import com.massagepro.R
 import com.massagepro.data.model.Appointment
-import com.massagepro.data.model.Client
 import com.massagepro.data.model.Service
 import com.massagepro.data.repository.AppointmentRepository
 import com.massagepro.data.repository.ClientRepository
@@ -29,7 +28,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
-import java.util.TimeZone
 import androidx.lifecycle.asFlow
 
 class AddEditAppointmentFragment : Fragment() {
@@ -96,7 +94,6 @@ class AddEditAppointmentFragment : Fragment() {
                     selectedNotes = appointment.notes
 
                     binding.editTextDuration.setText(appointment.serviceDuration.toString())
-                    // ЗМІНЕНО: toString() без форматування (тепер Int)
                     binding.editTextPrice.setText(appointment.servicePrice.toString())
                     binding.editTextNotes.setText(appointment.notes)
 
@@ -126,7 +123,7 @@ class AddEditAppointmentFragment : Fragment() {
             val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, clientNames)
             (binding.autoCompleteTextClient as? AutoCompleteTextView)?.setAdapter(adapter)
 
-            (binding.autoCompleteTextClient as? AutoCompleteTextView)?.setOnItemClickListener { parent, view, position, id ->
+            (binding.autoCompleteTextClient as? AutoCompleteTextView)?.setOnItemClickListener { parent, _, position, _ ->
                 val selectedClientName = parent.getItemAtPosition(position).toString()
                 selectedClientId = clients.find { it.name == selectedClientName }?.id
             }
@@ -139,13 +136,12 @@ class AddEditAppointmentFragment : Fragment() {
             val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, serviceNames)
             (binding.autoCompleteTextService as? AutoCompleteTextView)?.setAdapter(adapter)
 
-            (binding.autoCompleteTextService as? AutoCompleteTextView)?.setOnItemClickListener { parent, view, position, id ->
+            (binding.autoCompleteTextService as? AutoCompleteTextView)?.setOnItemClickListener { parent, _, position, _ ->
                 val selectedServiceName = parent.getItemAtPosition(position).toString()
                 val service = services.find { it.name == selectedServiceName }
                 selectedService = service
 
                 binding.editTextDuration.setText(service?.duration?.toString() ?: "")
-                // ЗМІНЕНО: toString() без форматування (тепер Int)
                 binding.editTextPrice.setText(service?.basePrice?.toString() ?: "")
             }
         }
@@ -223,7 +219,7 @@ class AddEditAppointmentFragment : Fragment() {
         }
 
         val duration = durationString.toIntOrNull()
-        val price = priceString.toIntOrNull() // ЗМІНЕНО: toIntOrNull()
+        val price = priceString.toIntOrNull()
 
         if (duration == null || price == null || duration <= 0 || price < 0) {
             Toast.makeText(requireContext(), getString(R.string.appointment_invalid_numeric_error), Toast.LENGTH_SHORT).show()
@@ -244,7 +240,7 @@ class AddEditAppointmentFragment : Fragment() {
                 serviceId = selectedService!!.id,
                 serviceName = selectedService!!.name,
                 serviceDuration = duration,
-                servicePrice = price, // Тепер це Int
+                servicePrice = price,
                 dateTime = combinedDateTime,
                 notes = notes
             )
@@ -255,7 +251,7 @@ class AddEditAppointmentFragment : Fragment() {
                 serviceId = selectedService!!.id,
                 serviceName = selectedService!!.name,
                 serviceDuration = duration,
-                servicePrice = price, // Тепер це Int
+                servicePrice = price,
                 dateTime = combinedDateTime,
                 notes = notes
             )

@@ -7,8 +7,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.asFlow
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -18,6 +21,9 @@ import com.massagepro.data.model.Appointment
 import com.massagepro.data.model.AppointmentWithClientAndService
 import com.massagepro.data.model.Client
 import com.massagepro.data.model.Service
+import com.massagepro.data.repository.AppointmentRepository
+import com.massagepro.data.repository.ClientRepository
+import com.massagepro.data.repository.ServiceRepository
 import com.massagepro.databinding.FragmentHomeBinding
 import com.massagepro.ui.appointments.AppointmentsViewModel
 import com.massagepro.ui.appointments.AppointmentsViewModelFactory
@@ -26,13 +32,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
-import kotlinx.coroutines.async
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import com.massagepro.data.repository.AppointmentRepository
-import com.massagepro.data.repository.ClientRepository
-import com.massagepro.data.repository.ServiceRepository
-import androidx.lifecycle.asFlow
 
 class HomeFragment : Fragment() {
 
@@ -49,7 +48,6 @@ class HomeFragment : Fragment() {
         )
     }
     private lateinit var timeSlotAdapter: TimeSlotAdapter
-
     private var selectedDate: Calendar = Calendar.getInstance()
 
     override fun onCreateView(
@@ -64,7 +62,7 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
 
             binding.headerLayout.setPadding(
@@ -84,10 +82,11 @@ class HomeFragment : Fragment() {
     private fun setupRecyclerView() {
         timeSlotAdapter = TimeSlotAdapter(
             onBookClick = { timeSlot ->
-                val action = HomeFragmentDirections.actionNavigationHomeToAddEditAppointmentFragment(
-                    appointmentId = -1,
-                    selectedStartTime = timeSlot.startTime.timeInMillis
-                )
+                val action =
+                    HomeFragmentDirections.actionNavigationHomeToAddEditAppointmentFragment(
+                        appointmentId = -1,
+                        selectedStartTime = timeSlot.startTime.timeInMillis
+                    )
                 findNavController().navigate(action)
             },
             showAppointmentActionsDialog = { appointment ->
@@ -130,15 +129,20 @@ class HomeFragment : Fragment() {
         binding.textViewSelectedDate.text = dateFormat.format(selectedDate.time)
 
         lifecycleScope.launch {
-            val startOfDayMillis = Calendar.getInstance().apply { time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
-            val endOfDayMillis = Calendar.getInstance().apply { time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999) }.timeInMillis
+            // ИЗМЕНЕНО: Используем функции-расширения getStartOfDayMillis и getEndOfDayMillis
+            val startOfDayMillis = selectedDate.getStartOfDayMillis()
+            val endOfDayMillis = selectedDate.getEndOfDayMillis()
 
-            val appointmentsForDay = appointmentsViewModel.getAppointmentsForDay(startOfDayMillis, endOfDayMillis).asFlow().first()
+            val appointmentsForDay =
+                appointmentsViewModel.getAppointmentsForDay(startOfDayMillis, endOfDayMillis)
+                    .asFlow().first()
 
             val totalRevenue = appointmentsForDay.sumOf { it.appointment.servicePrice }
 
-            binding.textViewAppointmentsCount.text = "${getString(R.string.appointments_count_prefix)} ${appointmentsForDay.size}"
-            binding.textViewTotalRevenue.text = "${getString(R.string.total_revenue_prefix)} ${"%d".format(totalRevenue)} грн"
+            binding.textViewAppointmentsCount.text =
+                getString(R.string.appointments_count_prefix, appointmentsForDay.size)
+            binding.textViewTotalRevenue.text =
+                getString(R.string.total_revenue_prefix, totalRevenue)
 
             val timeSlots = generateTimeSlots(appointmentsForDay)
             timeSlotAdapter.submitList(timeSlots)
@@ -147,9 +151,19 @@ class HomeFragment : Fragment() {
 
     private suspend fun generateTimeSlots(appointmentsWithDetails: List<AppointmentWithClientAndService>): List<TimeSlot> {
         val slots = mutableListOf<TimeSlot>()
-        val calendar = Calendar.getInstance().apply { time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 9); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
+        val calendar = Calendar.getInstance().apply {
+            time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 9); set(
+            Calendar.MINUTE,
+            0
+        ); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
 
-        val endOfDay = Calendar.getInstance().apply { time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 21); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
+        val endOfDay = Calendar.getInstance().apply {
+            time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 21); set(
+            Calendar.MINUTE,
+            0
+        ); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
 
         while (calendar.before(endOfDay)) {
             val slotStartTime = calendar.clone() as Calendar
@@ -162,23 +176,25 @@ class HomeFragment : Fragment() {
             var service: Service? = null
 
             for (appWithDetails in appointmentsWithDetails) {
-                val appointment = appWithDetails.appointment
-                val currentClient = appointmentsViewModel.getClientById(appointment.clientId)
-                val currentService = appointmentsViewModel.getServiceById(appointment.serviceId)
-
-                val appStartTime = Calendar.getInstance().apply { timeInMillis = appointment.dateTime }
-                val appEndTime = Calendar.getInstance().apply { timeInMillis = appointment.dateTime }
-                appEndTime.add(Calendar.MINUTE, appointment.serviceDuration)
-
-                if (slotStartTime.time.before(appEndTime.time) && slotEndTime.time.after(appStartTime.time)) {
+                // ИЗМЕНЕНО: Используем функцию-расширение overlaps
+                if (appWithDetails.overlaps(slotStartTime, slotEndTime)) {
                     isBooked = true
-                    bookedAppointment = appointment
-                    client = currentClient
-                    service = currentService
+                    bookedAppointment = appWithDetails.appointment
+                    client = appointmentsViewModel.getClientById(appWithDetails.appointment.clientId)
+                    service = appointmentsViewModel.getServiceById(appWithDetails.appointment.serviceId)
                     break
                 }
             }
-            slots.add(TimeSlot(slotStartTime, slotEndTime, isBooked, bookedAppointment, client, service))
+            slots.add(
+                TimeSlot(
+                    slotStartTime,
+                    slotEndTime,
+                    isBooked,
+                    bookedAppointment,
+                    client,
+                    service
+                )
+            )
         }
         return slots
     }
@@ -198,40 +214,68 @@ class HomeFragment : Fragment() {
             .setItems(statusOptions) { dialog, which ->
                 when (which) {
                     0 -> { // Редагувати
-                        val action = HomeFragmentDirections.actionNavigationHomeToAddEditAppointmentFragment(
-                            appointmentId = appointment.id,
-                            selectedStartTime = appointment.dateTime
-                        )
+                        val action =
+                            HomeFragmentDirections.actionNavigationHomeToAddEditAppointmentFragment(
+                                appointmentId = appointment.id,
+                                selectedStartTime = appointment.dateTime
+                            )
                         findNavController().navigate(action)
                     }
+
                     1 -> { // Перенести
-                        val action = HomeFragmentDirections.actionNavigationHomeToAddEditAppointmentFragment(
-                            appointmentId = appointment.id,
-                            selectedStartTime = appointment.dateTime
-                        )
+                        val action =
+                            HomeFragmentDirections.actionNavigationHomeToAddEditAppointmentFragment(
+                                appointmentId = appointment.id,
+                                selectedStartTime = appointment.dateTime
+                            )
                         findNavController().navigate(action)
                     }
+
                     2 -> { // Позначити як завершену
                         lifecycleScope.launch {
-                            appointmentsViewModel.updateAppointmentStatus(appointment.id, getString(R.string.appointment_status_completed))
+                            appointmentsViewModel.updateAppointmentStatus(
+                                appointment.id,
+                                getString(R.string.appointment_status_completed)
+                            )
                             updateUIForSelectedDate()
-                            Toast.makeText(requireContext(), getString(R.string.appointment_status_updated_toast), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                requireContext(),
+                                getString(R.string.appointment_status_updated_toast),
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
+
                     3 -> { // Позначити як скасовану
                         lifecycleScope.launch {
-                            appointmentsViewModel.updateAppointmentStatus(appointment.id, getString(R.string.appointment_status_cancelled))
+                            appointmentsViewModel.updateAppointmentStatus(
+                                appointment.id,
+                                getString(R.string.appointment_status_cancelled)
+                            )
                             updateUIForSelectedDate()
-                            Toast.makeText(requireContext(), getString(R.string.appointment_status_updated_toast), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                requireContext(),
+                                getString(R.string.appointment_status_updated_toast),
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
+
                     4 -> { // Позначити як неявку
                         lifecycleScope.launch {
-                            appointmentsViewModel.updateAppointmentStatus(appointment.id, getString(R.string.appointment_status_no_show))
+                            appointmentsViewModel.updateAppointmentStatus(
+                                appointment.id,
+                                getString(R.string.appointment_status_no_show)
+                            )
                             updateUIForSelectedDate()
-                            Toast.makeText(requireContext(), getString(R.string.appointment_status_updated_toast), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                requireContext(),
+                                getString(R.string.appointment_status_updated_toast),
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
+
                     5 -> { // Видалити
                         showDeleteConfirmationDialog(appointment)
                     }
@@ -266,5 +310,40 @@ class HomeFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    // Extension functions for cleaner date handling
+    private fun Calendar.getStartOfDayMillis(): Long = (clone() as Calendar).apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+
+    private fun Calendar.getEndOfDayMillis(): Long = (clone() as Calendar).apply {
+        set(Calendar.HOUR_OF_DAY, 23)
+        set(Calendar.MINUTE, 59)
+        set(Calendar.SECOND, 59)
+        set(Calendar.MILLISECOND, 999)
+    }.timeInMillis
+
+    // Закомментирована, так как не используется
+    // private fun Calendar.cloneStartOfDay(hour: Int): Calendar = (clone() as Calendar).apply {
+    //     set(Calendar.HOUR_OF_DAY, hour)
+    //     set(Calendar.MINUTE, 0)
+    //     set(Calendar.SECOND, 0)
+    //     set(Calendar.MILLISECOND, 0)
+    // }
+
+    private fun AppointmentWithClientAndService.overlaps(
+        slotStartTime: Calendar,
+        slotEndTime: Calendar
+    ): Boolean {
+        val appStart = Calendar.getInstance().apply { timeInMillis = appointment.dateTime }
+        val appEnd = Calendar.getInstance().apply { timeInMillis = appointment.dateTime }
+        appEnd.add(Calendar.MINUTE, appointment.serviceDuration)
+        // Проверяем, есть ли пересечение между интервалом слота и интервалом записи
+        // Условие пересечения: (StartA < EndB) && (EndA > StartB)
+        return appStart.time.before(slotEndTime.time) && appEnd.time.after(slotStartTime.time)
     }
 }

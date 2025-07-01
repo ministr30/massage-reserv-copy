@@ -1,17 +1,18 @@
-package com.massagepro
+package com.massagepro // или ваш актуальный пакет
 
 import android.app.Application
-import com.massagepro.data.AppDatabase
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import androidx.room.Room
+import com.massagepro.data.AppDatabase // Убедитесь, что это правильный путь к вашему AppDatabase
+// import androidx.room.Room // Больше не нужен прямой импорт Room здесь
 
 class App : Application() {
-    val applicationScope = CoroutineScope(SupervisorJob())
 
+    // ИЗМЕНЕНО: Теперь используем метод getDatabase() из AppDatabase
     val database: AppDatabase by lazy {
-        Room.databaseBuilder(applicationContext, AppDatabase::class.java, "massage_pro_database")
-            .fallbackToDestructiveMigrationOnDowngrade() // ИСПРАВЛЕНО: Добавлен параметр 'true'
-            .build()
+        AppDatabase.getDatabase(this) // Передаем this (Application context)
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        // Здесь можно добавить любую другую инициализацию на уровне приложения
     }
 }

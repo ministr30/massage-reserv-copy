@@ -1,15 +1,21 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
     <style name="Theme.MassagePRO" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/blue_500</item>
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/blue_700</item>
         <item name="colorPrimaryVariant">@color/blue_700</item>
-        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorOnPrimary">@color/white</item> <!-- Убедитесь, что white в ночной теме - это #FFFFFFFF для контраста с blue_700 -->
+        <!-- Secondary brand color. -->
         <item name="colorSecondary">@color/teal_200</item>
         <item name="colorSecondaryVariant">@color/teal_700</item>
         <item name="colorOnSecondary">@color/black</item>
+        <!-- Surface colors for dark theme -->
         <item name="colorSurface">@color/colorSurface</item>
         <item name="colorOnSurface">@color/colorOnSurface</item>
         <item name="hintTextColor">@color/grey_text_disabled</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+        <!-- Status bar for dark theme: dark background, light icons -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
