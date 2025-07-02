@@ -92,11 +92,11 @@ class ServicesFragment : Fragment() {
     private fun showDeleteConfirmationDialog(service: Service) {
         AlertDialog.Builder(requireContext())
             .setTitle(getString(R.string.delete_service_dialog_title))
-            .setMessage(getString(R.string.delete_service_dialog_message, service.name)) // %1$s
+            .setMessage(getString(R.string.delete_service_dialog_message, service.category)) // %1$s Используем category
             .setPositiveButton(getString(R.string.dialog_yes)) { dialog, _ ->
                 lifecycleScope.launch {
                     viewModel.deleteService(service)
-                    Toast.makeText(requireContext(), getString(R.string.service_deleted_toast, service.name), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), getString(R.string.service_deleted_toast, service.category), Toast.LENGTH_SHORT).show() // Используем category
                 }
                 dialog.dismiss()
             }

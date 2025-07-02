@@ -87,7 +87,6 @@
     <string name="notes_hint">Нотатки</string>
     <string name="date_hint">Дата</string>
     <string name="time_hint">Час</string>
-    <string name="service_name_required_hint">Назва послуги (обов\'язково)</string>
     <string name="service_base_price_hint">Базова вартість (грн)</string>
     <string name="service_duration_minutes_hint">Тривалість (хвилини)</string>
     <string name="service_category_hint">Категорія</string>

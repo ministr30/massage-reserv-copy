@@ -1,19 +1,13 @@
 package com.massagepro.data.dao
 
-import androidx.room.Dao
-import androidx.room.Delete
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
-import androidx.room.Update
-import androidx.room.Transaction
-import androidx.room.RewriteQueriesToDropUnusedColumns
+import androidx.room.*
 import com.massagepro.data.model.Appointment
 import com.massagepro.data.model.AppointmentWithClientAndService
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AppointmentDao {
+
     @Query("SELECT * FROM appointments ORDER BY dateTime ASC")
     fun getAllAppointments(): Flow<List<Appointment>>
 
@@ -43,7 +37,7 @@ interface AppointmentDao {
             a.notes AS appt_notes,
             a.status AS appt_status,
             c.name AS clientName,
-            s.name AS serviceName
+            s.category AS serviceName
         FROM
             appointments a
         INNER JOIN clients c ON a.clientId = c.id
@@ -66,7 +60,7 @@ interface AppointmentDao {
             a.notes AS appt_notes,
             a.status AS appt_status,
             c.name AS clientName,
-            s.name AS serviceName
+            s.category AS serviceName
         FROM
             appointments a
         INNER JOIN clients c ON a.clientId = c.id
@@ -76,8 +70,6 @@ interface AppointmentDao {
     """)
     fun getAppointmentsForDay(startOfDayMillis: Long, endOfDayMillis: Long): Flow<List<AppointmentWithClientAndService>>
 
-    // Добавь аннотацию @Query с реальным SQL, если нужно, иначе оставь suspend fun без тела
-    // Пример заглушки, замени под свою логику
     @Query("""
         SELECT * FROM appointments
         WHERE (:newStart < dateTime + serviceDuration) AND (:newEnd > dateTime)

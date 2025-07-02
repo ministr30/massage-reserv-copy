@@ -18,7 +18,6 @@ import kotlinx.coroutines.launch
 
 class AddEditServiceFragment : Fragment() {
 
-    private lateinit var editTextServiceName: EditText
     private lateinit var editTextServicePrice: EditText
     private lateinit var editTextServiceDuration: EditText
     private lateinit var autoCompleteServiceCategory: AutoCompleteTextView
@@ -54,7 +53,6 @@ class AddEditServiceFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         val view = inflater.inflate(R.layout.fragment_add_edit_service, container, false)
-        editTextServiceName = view.findViewById(R.id.edit_text_service_name)
         editTextServicePrice = view.findViewById(R.id.edit_text_service_price)
         editTextServiceDuration = view.findViewById(R.id.edit_text_service_duration)
         autoCompleteServiceCategory = view.findViewById(R.id.autoCompleteServiceCategory)
@@ -77,7 +75,6 @@ class AddEditServiceFragment : Fragment() {
         if (serviceId != -1) {
             lifecycleScope.launch {
                 viewModel.getServiceById(serviceId)?.let { service ->
-                    editTextServiceName.setText(service.name)
                     editTextServicePrice.setText(service.basePrice.toString())
                     editTextServiceDuration.setText(service.duration.toString())
                     // УДАЛЕНО: switchServiceActive.isChecked = service.isActive
@@ -101,7 +98,6 @@ class AddEditServiceFragment : Fragment() {
     }
 
     private fun saveService() {
-        val name = editTextServiceName.text.toString().trim()
         val priceString = editTextServicePrice.text.toString().trim()
         val durationString = editTextServiceDuration.text.toString().trim()
         val isActive = true // ИЗМЕНЕНО: Всегда считаем услугу активной, так как переключатель удален
@@ -110,10 +106,6 @@ class AddEditServiceFragment : Fragment() {
         val category = autoCompleteServiceCategory.text.toString().trim()
 
         when {
-            name.isEmpty() -> {
-                editTextServiceName.error = getString(R.string.service_name_required_hint)
-                return
-            }
             priceString.isEmpty() -> {
                 editTextServicePrice.error = getString(R.string.service_base_price_hint)
                 return
@@ -137,10 +129,13 @@ class AddEditServiceFragment : Fragment() {
             return
         }
 
+        // Используем категорию в качестве имени или другое значение по умолчанию
+        // val name = category // Поле name удалено из Service.kt
+
         val service = if (args.serviceId == -1) {
-            Service(name = name, duration = duration, basePrice = price, category = category, isActive = isActive)
+            Service(duration = duration, basePrice = price, category = category, isActive = isActive)
         } else {
-            Service(id = args.serviceId, name = name, duration = duration, basePrice = price, category = category, isActive = isActive)
+            Service(id = args.serviceId, duration = duration, basePrice = price, category = category, isActive = isActive)
         }
 
         lifecycleScope.launch {

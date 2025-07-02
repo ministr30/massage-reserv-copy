@@ -30,7 +30,7 @@ class ServiceAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(service: Service, onServiceClick: (Service) -> Unit, onEditClick: (Service) -> Unit, onDeleteClick: (Service) -> Unit) {
-            binding.textViewServiceName.text = service.name
+            binding.textViewServiceName.text = service.category // Используем категорию вместо имени
 
             binding.textViewServiceDetails.text = binding.root.context.getString(
                 R.string.service_details_format,
@@ -50,8 +50,8 @@ class ServiceAdapter(
         }
 
         override fun areContentsTheSame(oldItem: Service, newItem: Service): Boolean {
-            return oldItem.name == newItem.name &&
-                    oldItem.duration == newItem.duration &&
+            // Удалено сравнение по name
+            return oldItem.duration == newItem.duration &&
                     oldItem.basePrice == newItem.basePrice &&
                     oldItem.category == newItem.category &&
                     oldItem.isActive == newItem.isActive

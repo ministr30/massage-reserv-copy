@@ -48,7 +48,7 @@ class TimeSlotAdapter(
                 binding.bookedLayout.visibility = View.VISIBLE
 
                 val clientName = timeSlot.client?.name ?: binding.root.context.getString(R.string.unknown_client)
-                val serviceName = timeSlot.service?.name ?: binding.root.context.getString(R.string.unknown_service)
+                val serviceName = timeSlot.service?.category ?: binding.root.context.getString(R.string.unknown_service) // Используем category
                 val statusText = binding.root.context.getString(R.string.appointment_status_prefix, timeSlot.bookedAppointment?.status ?: "")
 
 

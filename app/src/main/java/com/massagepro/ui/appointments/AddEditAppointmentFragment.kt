@@ -108,7 +108,7 @@ class AddEditAppointmentFragment : Fragment() {
                         (binding.autoCompleteTextClient as? AutoCompleteTextView)?.setText(client.name, false)
                     }
                     viewModel.allServices.asFlow().first().find { service -> service.id == appointment.serviceId }?.let { service ->
-                        (binding.autoCompleteTextService as? AutoCompleteTextView)?.setText(service.name, false)
+                        (binding.autoCompleteTextService as? AutoCompleteTextView)?.setText(service.category, false) // Используем category
                     }
                 }
             }
@@ -132,13 +132,13 @@ class AddEditAppointmentFragment : Fragment() {
 
     private fun setupServiceSpinner() {
         viewModel.allServices.observe(viewLifecycleOwner) { services ->
-            val serviceNames = services.map { it.name }.toTypedArray()
+            val serviceNames = services.map { it.category }.toTypedArray() // Используем category
             val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, serviceNames)
             (binding.autoCompleteTextService as? AutoCompleteTextView)?.setAdapter(adapter)
 
             (binding.autoCompleteTextService as? AutoCompleteTextView)?.setOnItemClickListener { parent, _, position, _ ->
                 val selectedServiceName = parent.getItemAtPosition(position).toString()
-                val service = services.find { it.name == selectedServiceName }
+                val service = services.find { it.category == selectedServiceName } // Используем category
                 selectedService = service
 
                 binding.editTextDuration.setText(service?.duration?.toString() ?: "")
@@ -238,7 +238,7 @@ class AddEditAppointmentFragment : Fragment() {
             Appointment(
                 clientId = selectedClientId!!,
                 serviceId = selectedService!!.id,
-                serviceName = selectedService!!.name,
+                serviceName = selectedService!!.category, // Используем category
                 serviceDuration = duration,
                 servicePrice = price,
                 dateTime = combinedDateTime,
@@ -249,7 +249,7 @@ class AddEditAppointmentFragment : Fragment() {
                 id = args.appointmentId,
                 clientId = selectedClientId!!,
                 serviceId = selectedService!!.id,
-                serviceName = selectedService!!.name,
+                serviceName = selectedService!!.category, // Используем category
                 serviceDuration = duration,
                 servicePrice = price,
                 dateTime = combinedDateTime,

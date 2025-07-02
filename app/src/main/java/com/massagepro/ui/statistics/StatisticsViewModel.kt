@@ -87,7 +87,7 @@ class StatisticsViewModel(
         val mostPopularServiceId = serviceCounts.maxByOrNull { it.value }?.key
 
         _mostPopularService.value = mostPopularServiceId?.let {
-            serviceRepository.getServiceById(it)?.name
+            serviceRepository.getServiceById(it)?.category
         } ?: "Немає даних" // ИЗМЕНЕНО: "Нет данных" на "Немає даних"
     }
 

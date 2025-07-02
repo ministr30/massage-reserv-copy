@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ServiceDao {
-    @Query("SELECT * FROM services ORDER BY name ASC")
+    @Query("SELECT * FROM services ORDER BY category ASC")
     fun getAllServices(): Flow<List<Service>>
 
     @Query("SELECT * FROM services WHERE id = :serviceId")
@@ -26,7 +26,7 @@ interface ServiceDao {
     @Delete
     suspend fun deleteService(service: Service)
 
-    @Query("SELECT * FROM services WHERE category = :category ORDER BY name ASC")
+    @Query("SELECT * FROM services WHERE category = :category ORDER BY category ASC")
     fun getServicesByCategory(category: String): Flow<List<Service>>
 
     @Query("SELECT DISTINCT category FROM services ORDER BY category ASC")
