@@ -34,7 +34,6 @@ class MainActivity : AppCompatActivity() {
             isLoading = false
         }
 
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
