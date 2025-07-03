@@ -8,19 +8,18 @@
     android:background="?attr/colorSurface"
     tools:context=".ui.home.HomeFragment">
 
+    <!-- Блок 1: Заголовок с навигацией по датам -->
     <LinearLayout
         android:id="@+id/header_layout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginEnd="8dp"
+        android:background="?attr/colorSurface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:padding="16dp"
-        android:background="?attr/colorSurface"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintTop_toTopOf="parent">
 
         <ImageButton
             android:id="@+id/button_prev_day"
@@ -37,9 +36,9 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:textAlignment="center"
+            android:textColor="?attr/colorOnSurface"
             android:textSize="20sp"
             android:textStyle="bold"
-            android:textColor="?attr/colorOnSurface"
             tools:text="Сьогодні 21 червня" />
 
         <ImageButton
@@ -52,54 +51,93 @@
             app:tint="?attr/colorOnSurface" />
     </LinearLayout>
 
+    <!-- Блок 2: Сводка за день (количество записей и сумма ) -->
     <LinearLayout
         android:id="@+id/today_summary_layout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:background="?attr/colorSurface"
         android:orientation="vertical"
         android:paddingStart="16dp"
         android:paddingTop="8dp"
         android:paddingEnd="16dp"
         android:paddingBottom="8dp"
-        android:background="?attr/colorSurface"
         android:visibility="visible"
-        app:layout_constraintTop_toBottomOf="@id/header_layout"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/header_layout"
         tools:visibility="visible">
 
         <TextView
             android:id="@+id/text_view_appointments_count"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="16sp"
             android:textColor="?attr/colorOnSurface"
+            android:textSize="16sp"
             tools:text="Записів на сьогодні: 3" />
 
         <TextView
             android:id="@+id/text_view_total_revenue"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="16sp"
             android:textColor="?attr/colorOnSurface"
+            android:textSize="16sp"
             tools:text="Загальна сума: 1500 грн" />
     </LinearLayout>
 
+    <!-- Блок 3: Список временных слотов (RecyclerView) -->
+    <!-- Начинается под сводкой и заканчивается НАД переключателем -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_view_time_slots"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="16dp"
+        android:layout_marginBottom="8dp"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
-        android:paddingBottom="85dp"
+        android:paddingBottom="80dp"
+        android:clipToPadding="false"
         android:background="?attr/colorSurface"
-        android:scrollbars="none"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:scrollbars="vertical"
+        app:layout_constraintBottom_toTopOf="@id/switch_hide_empty_slots"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/today_summary_layout"
-        tools:listitem="@layout/item_time_slot"
-        tools:ignore="ExtraText" />
+        tools:listitem="@layout/item_time_slot" />
+
+    <!-- НОВЫЙ TextView для сообщения о пустых записях -->
+    <TextView
+        android:id="@+id/text_view_no_appointments_message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/no_appointments_message"
+        android:textSize="18sp"
+        android:textColor="?attr/colorOnSurface"
+        android:gravity="center"
+        android:visibility="gone"
+    app:layout_constraintTop_toTopOf="@id/recycler_view_time_slots"
+    app:layout_constraintBottom_toBottomOf="@id/recycler_view_time_slots"
+    app:layout_constraintStart_toStartOf="@id/recycler_view_time_slots"
+    app:layout_constraintEnd_toEndOf="@id/recycler_view_time_slots"
+    app:layout_constraintVertical_bias="0.3"
+    />
+
+    <!-- Блок 4: Переключатель (SwitchMaterial) -->
+    <!-- Привязан к низу экрана -->
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/switch_hide_empty_slots"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/switch_background_with_border"
+        android:checked="false"
+        android:elevation="12dp"
+        android:padding="16dp"
+        android:text="@string/hide_free_slots"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

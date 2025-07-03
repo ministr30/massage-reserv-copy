@@ -35,16 +35,20 @@ class AddEditAppointmentFragment : Fragment() {
     private var _binding: FragmentAddEditAppointmentBinding? = null
     private val binding get() = _binding!!
 
+    // ПРАВИЛЬНО
     private val viewModel: AppointmentsViewModel by viewModels {
-        val database = (requireActivity().application as App).database
+        val application = requireActivity().application as App
+        val database = application.database
         val clientRepository = ClientRepository(database.clientDao())
         val serviceRepository = ServiceRepository(database.serviceDao())
         AppointmentsViewModelFactory(
+            application, // <--- ДОБАВЛЕН ПЕРВЫЙ ПАРАМЕТР
             AppointmentRepository(database.appointmentDao(), serviceRepository),
             clientRepository,
             serviceRepository
         )
     }
+
 
     private val args: AddEditAppointmentFragmentArgs by navArgs()
 

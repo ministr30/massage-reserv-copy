@@ -11,23 +11,18 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.asFlow
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.massagepro.App
 import com.massagepro.R
 import com.massagepro.data.model.Appointment
-import com.massagepro.data.model.AppointmentWithClientAndService
-import com.massagepro.data.model.Client
-import com.massagepro.data.model.Service
-import com.massagepro.data.repository.AppointmentRepository
-import com.massagepro.data.repository.ClientRepository
-import com.massagepro.data.repository.ServiceRepository
 import com.massagepro.databinding.FragmentHomeBinding
 import com.massagepro.ui.appointments.AppointmentsViewModel
 import com.massagepro.ui.appointments.AppointmentsViewModelFactory
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -38,11 +33,13 @@ class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private val appointmentsViewModel: AppointmentsViewModel by viewModels {
-        val database = (requireActivity().application as App).database
-        val clientRepository = ClientRepository(database.clientDao())
-        val serviceRepository = ServiceRepository(database.serviceDao())
+        val application = requireActivity().application as App
+        val database = application.database
+        val clientRepository = com.massagepro.data.repository.ClientRepository(database.clientDao())
+        val serviceRepository = com.massagepro.data.repository.ServiceRepository(database.serviceDao())
         AppointmentsViewModelFactory(
-            AppointmentRepository(database.appointmentDao(), serviceRepository),
+            application, // Pass application context
+            com.massagepro.data.repository.AppointmentRepository(database.appointmentDao(), serviceRepository),
             clientRepository,
             serviceRepository
         )
@@ -76,7 +73,8 @@ class HomeFragment : Fragment() {
 
         setupRecyclerView()
         setupDateNavigation()
-        updateUIForSelectedDate()
+        setupHideFreeSlotsSwitch()
+        updateUIForSelectedDate() // <--- Вызов здесь
     }
 
     private fun setupRecyclerView() {
@@ -128,75 +126,58 @@ class HomeFragment : Fragment() {
         val dateFormat = SimpleDateFormat("EEEE, dd MMMM", Locale("uk", "UA"))
         binding.textViewSelectedDate.text = dateFormat.format(selectedDate.time)
 
-        lifecycleScope.launch {
-            // ИЗМЕНЕНО: Используем функции-расширения getStartOfDayMillis и getEndOfDayMillis
-            val startOfDayMillis = selectedDate.getStartOfDayMillis()
-            val endOfDayMillis = selectedDate.getEndOfDayMillis()
+        // --- ИСПРАВЛЕНИЕ МЕРЦАНИЯ: Очищаем список и скрываем сообщение сразу ---
+        timeSlotAdapter.submitList(emptyList()) // Немедленно очищаем RecyclerView
+        binding.textViewNoAppointmentsMessage.visibility = View.GONE // Скрываем сообщение
+        binding.recyclerViewTimeSlots.visibility = View.VISIBLE // Убеждаемся, что RecyclerView виден, пока не придут новые данные
+        // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
-            val appointmentsForDay =
-                appointmentsViewModel.getAppointmentsForDay(startOfDayMillis, endOfDayMillis)
-                    .asFlow().first()
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                appointmentsViewModel.getDisplayableTimeSlots(selectedDate)
+                    .combine(appointmentsViewModel.hideFreeSlots) { timeSlots, hideFreeSlots ->
+                        Pair(timeSlots, hideFreeSlots)
+                    }
+                    .collectLatest { (timeSlots, hideFreeSlots) ->
+                        timeSlotAdapter.submitList(timeSlots)
 
-            val totalRevenue = appointmentsForDay.sumOf { it.appointment.servicePrice }
+                        if (timeSlots.isEmpty() && hideFreeSlots) {
+                            binding.recyclerViewTimeSlots.visibility = View.GONE
+                            binding.textViewNoAppointmentsMessage.visibility = View.VISIBLE
+                        } else {
+                            binding.recyclerViewTimeSlots.visibility = View.VISIBLE
+                            binding.textViewNoAppointmentsMessage.visibility = View.GONE
+                        }
 
-            binding.textViewAppointmentsCount.text =
-                getString(R.string.appointments_count_prefix, appointmentsForDay.size)
-            binding.textViewTotalRevenue.text =
-                getString(R.string.total_revenue_prefix, totalRevenue)
+                        val cal = selectedDate.clone() as Calendar
+                        val startOfDayMillis = cal.apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
+                        val endOfDayMillis = cal.apply { set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999) }.timeInMillis
 
-            val timeSlots = generateTimeSlots(appointmentsForDay)
-            timeSlotAdapter.submitList(timeSlots)
+                        appointmentsViewModel.getAppointmentsForDayLiveData(startOfDayMillis, endOfDayMillis).observe(viewLifecycleOwner) { appointmentsForDay ->
+                            val totalRevenue = appointmentsForDay.sumOf { it.appointment.servicePrice }
+                            binding.textViewAppointmentsCount.text =
+                                getString(R.string.appointments_count_prefix, appointmentsForDay.size)
+                            binding.textViewTotalRevenue.text =
+                                getString(R.string.total_revenue_prefix, totalRevenue)
+                        }
+                    }
+            }
         }
     }
 
-    private suspend fun generateTimeSlots(appointmentsWithDetails: List<AppointmentWithClientAndService>): List<TimeSlot> {
-        val slots = mutableListOf<TimeSlot>()
-        val calendar = Calendar.getInstance().apply {
-            time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 9); set(
-            Calendar.MINUTE,
-            0
-        ); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+    private fun setupHideFreeSlotsSwitch() {
+        val switch = binding.switchHideEmptySlots
+        switch.setOnCheckedChangeListener { _, isChecked ->
+            appointmentsViewModel.setHideFreeSlots(isChecked)
         }
 
-        val endOfDay = Calendar.getInstance().apply {
-            time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 21); set(
-            Calendar.MINUTE,
-            0
-        ); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-        }
-
-        while (calendar.before(endOfDay)) {
-            val slotStartTime = calendar.clone() as Calendar
-            calendar.add(Calendar.MINUTE, 30) // 30-minute slots
-            val slotEndTime = calendar.clone() as Calendar
-
-            var isBooked = false
-            var bookedAppointment: Appointment? = null
-            var client: Client? = null
-            var service: Service? = null
-
-            for (appWithDetails in appointmentsWithDetails) {
-                // ИЗМЕНЕНО: Используем функцию-расширение overlaps
-                if (appWithDetails.overlaps(slotStartTime, slotEndTime)) {
-                    isBooked = true
-                    bookedAppointment = appWithDetails.appointment
-                    client = appointmentsViewModel.getClientById(appWithDetails.appointment.clientId)
-                    service = appointmentsViewModel.getServiceById(appWithDetails.appointment.serviceId)
-                    break
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                appointmentsViewModel.hideFreeSlots.collectLatest { hide ->
+                    switch.isChecked = hide
                 }
             }
-            slots.add(
-                TimeSlot(
-                    slotStartTime,
-                    slotEndTime,
-                    isBooked,
-                    bookedAppointment,
-                    client,
-                    service
-                )
-            )
         }
-        return slots
     }
 
     private fun showAppointmentActionsDialog(appointment: Appointment) {
@@ -237,7 +218,6 @@ class HomeFragment : Fragment() {
                                 appointment.id,
                                 getString(R.string.appointment_status_completed)
                             )
-                            updateUIForSelectedDate()
                             Toast.makeText(
                                 requireContext(),
                                 getString(R.string.appointment_status_updated_toast),
@@ -252,7 +232,6 @@ class HomeFragment : Fragment() {
                                 appointment.id,
                                 getString(R.string.appointment_status_cancelled)
                             )
-                            updateUIForSelectedDate()
                             Toast.makeText(
                                 requireContext(),
                                 getString(R.string.appointment_status_updated_toast),
@@ -267,7 +246,6 @@ class HomeFragment : Fragment() {
                                 appointment.id,
                                 getString(R.string.appointment_status_no_show)
                             )
-                            updateUIForSelectedDate()
                             Toast.makeText(
                                 requireContext(),
                                 getString(R.string.appointment_status_updated_toast),
@@ -292,7 +270,6 @@ class HomeFragment : Fragment() {
             .setPositiveButton(getString(R.string.dialog_yes)) { dialog, _ ->
                 lifecycleScope.launch {
                     appointmentsViewModel.deleteAppointment(appointment)
-                    updateUIForSelectedDate()
                 }
                 dialog.dismiss()
             }
@@ -302,48 +279,10 @@ class HomeFragment : Fragment() {
             .show()
     }
 
-    override fun onResume() {
-        super.onResume()
-        updateUIForSelectedDate()
-    }
+    // Метод onResume() полностью удален, так как он стал избыточным.
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-    }
-
-    // Extension functions for cleaner date handling
-    private fun Calendar.getStartOfDayMillis(): Long = (clone() as Calendar).apply {
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }.timeInMillis
-
-    private fun Calendar.getEndOfDayMillis(): Long = (clone() as Calendar).apply {
-        set(Calendar.HOUR_OF_DAY, 23)
-        set(Calendar.MINUTE, 59)
-        set(Calendar.SECOND, 59)
-        set(Calendar.MILLISECOND, 999)
-    }.timeInMillis
-
-    // Закомментирована, так как не используется
-    // private fun Calendar.cloneStartOfDay(hour: Int): Calendar = (clone() as Calendar).apply {
-    //     set(Calendar.HOUR_OF_DAY, hour)
-    //     set(Calendar.MINUTE, 0)
-    //     set(Calendar.SECOND, 0)
-    //     set(Calendar.MILLISECOND, 0)
-    // }
-
-    private fun AppointmentWithClientAndService.overlaps(
-        slotStartTime: Calendar,
-        slotEndTime: Calendar
-    ): Boolean {
-        val appStart = Calendar.getInstance().apply { timeInMillis = appointment.dateTime }
-        val appEnd = Calendar.getInstance().apply { timeInMillis = appointment.dateTime }
-        appEnd.add(Calendar.MINUTE, appointment.serviceDuration)
-        // Проверяем, есть ли пересечение между интервалом слота и интервалом записи
-        // Условие пересечения: (StartA < EndB) && (EndA > StartB)
-        return appStart.time.before(slotEndTime.time) && appEnd.time.after(slotStartTime.time)
     }
 }

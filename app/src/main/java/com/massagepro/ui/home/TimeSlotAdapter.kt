@@ -12,10 +12,8 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.core.content.ContextCompat
 import com.massagepro.data.model.Appointment
-import com.massagepro.data.model.Client
-import com.massagepro.data.model.Service
 import java.util.Calendar
-import java.util.Date
+
 
 class TimeSlotAdapter(
     private val onBookClick: (TimeSlot) -> Unit,
@@ -48,7 +46,7 @@ class TimeSlotAdapter(
                 binding.bookedLayout.visibility = View.VISIBLE
 
                 val clientName = timeSlot.client?.name ?: binding.root.context.getString(R.string.unknown_client)
-                val serviceName = timeSlot.service?.category ?: binding.root.context.getString(R.string.unknown_service) // Используем category
+                val serviceName = timeSlot.service?.category ?: binding.root.context.getString(R.string.unknown_service)
                 val statusText = binding.root.context.getString(R.string.appointment_status_prefix, timeSlot.bookedAppointment?.status ?: "")
 
 
@@ -56,7 +54,8 @@ class TimeSlotAdapter(
                 binding.textViewServiceName.text = serviceName
                 binding.textViewAppointmentStatus.text = statusText
 
-                binding.cardViewTimeSlot.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.colorBookedSlot))
+                // ИЗМЕНЕНО ЗДЕСЬ: ИСПОЛЬЗУЕМ НОВЫЙ ЛАВАНДОВЫЙ ЦВЕТ
+                binding.cardViewTimeSlot.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.lavender_booked_slot))
                 binding.textViewTimeSlot.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
                 binding.textViewClientName.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
                 binding.textViewServiceName.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))

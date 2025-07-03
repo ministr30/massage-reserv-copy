@@ -174,4 +174,6 @@
     <!-- НОВЫЕ СТРОКИ ДЛЯ СООБЩЕНИЙ "НЕТ ДАННЫХ" -->
     <string name="no_chart_data_appointments">Немає даних про записи за обраний період.</string>
     <string name="no_chart_data_revenue">Немає даних про виручку за обраний період.</string>
+    <string name="no_appointments_message">Ще немає записів на цей день.</string>
+    <string name="hide_free_slots">Приховати вільні слоти</string>
 </resources>
