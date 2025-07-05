@@ -12,6 +12,7 @@
     <string name="service_details_format">%1$d грн, %2$d хв</string>
     <string name="appointment_status_scheduled">Заплановано</string>
     <string name="appointment_status_completed">Завершено</string>
+    <string name="service_price_prefix">Вартість: %s грн</string>
     <string name="appointment_status_cancelled">Скасовано</string>
     <string name="appointment_status_no_show">Неявка</string>
 
@@ -107,8 +108,6 @@
     <string name="delete_client_dialog_message">Ви впевнені, що хочете видалити клієнта %1$s? Всі його записи будуть збережені, але клієнт буде видалений зі списку.</string>
     <string name="delete_service_dialog_title">Видалити послугу</string>
     <string name="delete_service_dialog_message">Послуга \"%1$s\" використовується в X записах. Видалення призведе до втрати зв\'язку з цими записами. Продовжити?</string>
-    <string name="dialog_yes">Так</string>
-    <string name="dialog_no">Ні</string>
 
     <string name="client_name_empty_error">Ім\'я не може бути порожнім</string>
     <string name="phone_format_error_flexible">Некоректний формат телефону (наприклад, 0961234567)</string>
@@ -176,4 +175,11 @@
     <string name="no_chart_data_revenue">Немає даних про виручку за обраний період.</string>
     <string name="no_appointments_message">Ще немає записів на цей день.</string>
     <string name="hide_free_slots">Приховати вільні слоти</string>
+
+    <!-- ДОПЛАТА ЗА ВЫХОДНОЙ" -->
+    <string name="weekend_surcharge_title">Доплата за вихідний день</string>
+    <string name="weekend_surcharge_message">Додати 100 грн до вартості у вихідний день?</string>
+    <string name="dialog_yes">Так</string>
+    <string name="dialog_no">Ні</string>
+
 </resources>

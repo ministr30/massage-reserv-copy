@@ -6,6 +6,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
+import com.massagepro.App // Импорт App для доступа к строковым ресурсам
+import com.massagepro.R // Импорт R для доступа к строковым ресурсам
 import com.massagepro.data.model.Appointment
 import com.massagepro.data.model.AppointmentWithClientAndService
 import com.massagepro.data.model.Client
@@ -13,6 +15,7 @@ import com.massagepro.data.model.Service
 import com.massagepro.data.repository.AppointmentRepository
 import com.massagepro.data.repository.ClientRepository
 import com.massagepro.data.repository.ServiceRepository
+import com.massagepro.ui.home.TimeSlot // Убедитесь, что импорт TimeSlot корректен
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +23,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import com.massagepro.ui.home.TimeSlot
 import java.util.Calendar
 
 private const val PREFS_NAME = "com.massagepro.slot_prefs"
@@ -41,6 +43,11 @@ class AppointmentsViewModel(
 
     private val _hideFreeSlots = MutableStateFlow(loadHideFreeSlotsState())
     val hideFreeSlots: StateFlow<Boolean> = _hideFreeSlots.asStateFlow()
+
+    init {
+        // Запускаем проверку статусов при инициализации ViewModel
+        checkAndAutoUpdateAppointmentStatuses()
+    }
 
     fun setHideFreeSlots(hide: Boolean) {
         _hideFreeSlots.value = hide
@@ -81,12 +88,10 @@ class AppointmentsViewModel(
         return serviceRepository.getServiceById(serviceId)
     }
 
-    // This returns LiveData for existing usages if any (e.g. original HomeFragment use)
     fun getAppointmentsForDayLiveData(startOfDayMillis: Long, endOfDayMillis: Long): LiveData<List<AppointmentWithClientAndService>> {
         return appointmentRepository.getAppointmentsForDay(startOfDayMillis, endOfDayMillis).asLiveData()
     }
 
-    // This returns a Flow for the new combined logic
     fun getAppointmentsForDayFlow(startOfDayMillis: Long, endOfDayMillis: Long): Flow<List<AppointmentWithClientAndService>> {
         return appointmentRepository.getAppointmentsForDay(startOfDayMillis, endOfDayMillis)
     }
@@ -101,9 +106,29 @@ class AppointmentsViewModel(
         }
     }
 
-    // Moved from HomeFragment
+    private fun checkAndAutoUpdateAppointmentStatuses() {
+        viewModelScope.launch {
+            val scheduledStatus = application.getString(R.string.appointment_status_scheduled)
+            val completedStatus = application.getString(R.string.appointment_status_completed)
+
+            val scheduledAppointments = appointmentRepository.getAppointmentsByStatus(scheduledStatus)
+
+            val currentTimeMillis = System.currentTimeMillis()
+
+            scheduledAppointments.forEach { appointment ->
+                val appointmentEndTimeMillis = appointment.dateTime + (appointment.serviceDuration * 60 * 1000) // Время окончания записи
+
+                if (currentTimeMillis >= appointmentEndTimeMillis) {
+                    val updatedAppointment = appointment.copy(status = completedStatus)
+                    appointmentRepository.updateAppointment(updatedAppointment)
+                }
+            }
+        }
+    }
+
+    // Метод generateTimeSlots теперь suspend
     private suspend fun generateTimeSlots(selectedDate: Calendar, appointmentsWithDetails: List<AppointmentWithClientAndService>): List<TimeSlot> {
-        val slots = mutableListOf<TimeSlot>()
+        val allSlots = mutableListOf<TimeSlot>()
         val calendar = Calendar.getInstance().apply {
             time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 9); set(
             Calendar.MINUTE,
@@ -118,6 +143,8 @@ class AppointmentsViewModel(
         ); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }
 
+        val processedAppointmentIds = mutableSetOf<Int>()
+
         while (calendar.before(endOfDay)) {
             val slotStartTime = calendar.clone() as Calendar
             calendar.add(Calendar.MINUTE, 30) // 30-minute slots
@@ -127,28 +154,54 @@ class AppointmentsViewModel(
             var bookedAppointment: Appointment? = null
             var client: Client? = null
             var service: Service? = null
+            var shouldDisplay = true
 
+            var appointmentStartingHere: AppointmentWithClientAndService? = null
             for (appWithDetails in appointmentsWithDetails) {
-                if (appWithDetails.overlaps(slotStartTime, slotEndTime)) {
-                    isBooked = true
-                    bookedAppointment = appWithDetails.appointment
-                    client = getClientById(appWithDetails.appointment.clientId) // Use ViewModel's method
-                    service = getServiceById(appWithDetails.appointment.serviceId) // Use ViewModel's method
+                val appStart = Calendar.getInstance().apply { timeInMillis = appWithDetails.appointment.dateTime }
+                if (appStart.timeInMillis == slotStartTime.timeInMillis) {
+                    appointmentStartingHere = appWithDetails
                     break
                 }
             }
-            slots.add(
+
+            if (appointmentStartingHere != null) {
+                isBooked = true
+                bookedAppointment = appointmentStartingHere.appointment
+                client = getClientById(appointmentStartingHere.appointment.clientId)
+                service = getServiceById(appointmentStartingHere.appointment.serviceId)
+                shouldDisplay = true
+                processedAppointmentIds.add(bookedAppointment.id)
+            } else {
+                for (appWithDetails in appointmentsWithDetails) {
+                    val appStart = Calendar.getInstance().apply { timeInMillis = appWithDetails.appointment.dateTime }
+                    val appEnd = Calendar.getInstance().apply { timeInMillis = appWithDetails.appointment.dateTime }
+                    appEnd.add(Calendar.MINUTE, appWithDetails.appointment.serviceDuration)
+
+                    if (appWithDetails.overlaps(slotStartTime, slotEndTime) && !processedAppointmentIds.contains(appWithDetails.appointment.id)) {
+                        isBooked = true
+                        bookedAppointment = appWithDetails.appointment
+                        client = getClientById(appWithDetails.appointment.clientId)
+                        service = getServiceById(appWithDetails.appointment.serviceId)
+                        shouldDisplay = false
+                        break
+                    }
+                }
+            }
+
+            allSlots.add(
                 TimeSlot(
                     slotStartTime,
                     slotEndTime,
                     isBooked,
                     bookedAppointment,
                     client,
-                    service
+                    service,
+                    shouldDisplay
                 )
             )
         }
-        return slots
+        return allSlots.filter { it.shouldDisplay }
     }
 
 
@@ -159,7 +212,7 @@ class AppointmentsViewModel(
         val appointmentsFlow = getAppointmentsForDayFlow(startOfDayMillis, endOfDayMillis)
 
         val generatedTimeSlotsFlow: Flow<List<TimeSlot>> = appointmentsFlow.map { appointments ->
-            // Pass selectedDate to generateTimeSlots
+            // Вызываем suspend функцию generateTimeSlots внутри map, который сам по себе suspend
             generateTimeSlots(selectedDate, appointments)
         }
 
@@ -168,7 +221,6 @@ class AppointmentsViewModel(
         }
     }
 
-    // Extension functions moved from HomeFragment
     private fun Calendar.getStartOfDayMillis(): Long = (clone() as Calendar).apply {
         set(Calendar.HOUR_OF_DAY, 0)
         set(Calendar.MINUTE, 0)
@@ -189,7 +241,6 @@ class AppointmentsViewModel(
     ): Boolean {
         val appStart = Calendar.getInstance().apply { timeInMillis = appointment.dateTime }
         val appEnd = Calendar.getInstance().apply { timeInMillis = appointment.dateTime }
-        // Ensure serviceDuration is positive, otherwise add 0 minutes.
         val durationMinutes = if (appointment.serviceDuration > 0) appointment.serviceDuration else 0
         appEnd.add(Calendar.MINUTE, durationMinutes)
         return appStart.time.before(slotEndTime.time) && appEnd.time.after(slotStartTime.time)

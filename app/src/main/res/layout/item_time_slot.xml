@@ -53,6 +53,15 @@
                 android:alpha="0.8"
                 tools:text="Назва Послуги" />
 
+            <!-- НОВАЯ СТРОКА ДЛЯ СТОИМОСТИ -->
+            <TextView
+                android:id="@+id/text_view_service_price"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:alpha="0.8"
+                tools:text="Вартість: 500 грн" />
+
             <TextView
                 android:id="@+id/text_view_appointment_status"
                 android:layout_width="wrap_content"

@@ -9,12 +9,13 @@ import androidx.lifecycle.viewModelScope
 import com.massagepro.data.repository.AppointmentRepository
 import com.massagepro.data.repository.ClientRepository
 import com.massagepro.data.repository.ServiceRepository
-import kotlinx.coroutines.flow.firstOrNull // ИЗМЕНЕНО: firstOrNull вместо first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.massagepro.data.model.Appointment
+import com.massagepro.data.model.AppointmentWithClientAndService // Добавлен импорт
 
 class StatisticsViewModel(
     private val appointmentRepository: AppointmentRepository,
@@ -40,40 +41,44 @@ class StatisticsViewModel(
     private val _revenueByCategory = MutableLiveData<Map<String, Int>>()
     val revenueByCategory: LiveData<Map<String, Int>> = _revenueByCategory
 
-    // ИЗМЕНЕНО: Добавлен параметр groupingInterval
     fun generateStatistics(startDate: Date, endDate: Date, groupingInterval: GroupingInterval) {
         viewModelScope.launch {
             try {
-                // ИЗМЕНЕНО: Логика для "За весь час" и получения списка AppointmentWithClientAndService
-                val appointmentWithClientAndServiceList = if (groupingInterval == GroupingInterval.ALL_TIME) {
-                    appointmentRepository.getAllAppointments().firstOrNull() ?: emptyList() // Предполагаем, что getAllAppointments() возвращает Flow<List<AppointmentWithClientAndService>>
+                val allAppointments: List<Appointment> // Для подсчета общего количества и выручки
+                val appointmentsWithDetails: List<AppointmentWithClientAndService> // Для детализированных отчетов (графиков)
+
+                if (groupingInterval == GroupingInterval.ALL_TIME) {
+                    // ИСПРАВЛЕНО: Теперь вызываем новый метод getAllAppointments()
+                    allAppointments = appointmentRepository.getAllAppointments().firstOrNull() ?: emptyList()
+                    appointmentsWithDetails = appointmentRepository.getAppointmentsWithClientAndService().firstOrNull() ?: emptyList()
+
                 } else {
-                    appointmentRepository.getAppointmentsForDay(
+                    appointmentsWithDetails = appointmentRepository.getAppointmentsForDay(
                         startDate.time,
                         endDate.time
-                    ).firstOrNull() ?: emptyList() // ИЗМЕНЕНО: firstOrNull()
+                    ).firstOrNull() ?: emptyList()
+                    allAppointments = appointmentsWithDetails.map { it.appointment } // Извлекаем базовые Appointment
                 }
 
-                // ИЗМЕНЕНО: Преобразуем в список Appointment
-                val appointments = appointmentWithClientAndServiceList.map { it.appointment }
-
                 // 1. Общее количество записей
-                _totalAppointments.value = appointments.size
+                _totalAppointments.value = allAppointments.size
 
                 // 2. Общая выручка
-                _totalRevenue.value = appointments.sumOf { it.servicePrice }
+                _totalRevenue.value = allAppointments.sumOf { it.servicePrice }
 
                 // 3. Самая популярная услуга
-                calculateMostPopularService(appointments)
+                calculateMostPopularService(allAppointments) // Используем базовые Appointment
 
                 // 4. Самый активный клиент
-                calculateMostActiveClient(appointments)
+                calculateMostActiveClient(allAppointments) // Используем базовые Appointment
 
                 // 5. Данные для BarChart - ИЗМЕНЕНО: Теперь с учетом groupingInterval
-                calculateAppointmentsByDate(appointments, groupingInterval)
+                // Здесь используем appointmentsWithDetails, так как нужны данные о дате
+                calculateAppointmentsByDate(appointmentsWithDetails, groupingInterval)
 
                 // 6. Данные для PieChart
-                calculateRevenueByCategory(appointments)
+                // Здесь используем appointmentsWithDetails, так как нужны данные о категории
+                calculateRevenueByCategory(appointmentsWithDetails)
 
             } catch (e: Exception) {
                 // Логируем ошибку
@@ -88,7 +93,7 @@ class StatisticsViewModel(
 
         _mostPopularService.value = mostPopularServiceId?.let {
             serviceRepository.getServiceById(it)?.category
-        } ?: "Немає даних" // ИЗМЕНЕНО: "Нет данных" на "Немає даних"
+        } ?: "Немає даних"
     }
 
     private suspend fun calculateMostActiveClient(appointments: List<Appointment>) {
@@ -97,59 +102,46 @@ class StatisticsViewModel(
 
         _mostActiveClient.value = mostActiveClientId?.let {
             clientRepository.getClientById(it)?.name
-        } ?: "Немає даних" // ИЗМЕНЕНО: "Нет данных" на "Немає даних"
+        } ?: "Немає даних"
     }
 
-    // ИЗМЕНЕНО: Добавлен параметр groupingInterval
-    private fun calculateAppointmentsByDate(appointments: List<Appointment>, groupingInterval: GroupingInterval) {
+    // Изменено: теперь принимает List<AppointmentWithClientAndService>
+    private fun calculateAppointmentsByDate(appointments: List<AppointmentWithClientAndService>, groupingInterval: GroupingInterval) {
         val dailyAppointments = when (groupingInterval) {
             GroupingInterval.DAY -> appointments
-                .groupBy { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(it.dateTime)) }
+                .groupBy { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(it.appointment.dateTime)) }
                 .mapValues { it.value.size }
                 .toSortedMap()
             GroupingInterval.WEEK -> appointments
                 .groupBy {
-                    val cal = Calendar.getInstance().apply { timeInMillis = it.dateTime }
-                    cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY) // Неделя начинается с понедельника
-                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time) // Дата начала недели
+                    val cal = Calendar.getInstance().apply { timeInMillis = it.appointment.dateTime }
+                    cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
                 }
                 .mapValues { it.value.size }
                 .toSortedMap()
             GroupingInterval.MONTH -> appointments
-                .groupBy { SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date(it.dateTime)) }
+                .groupBy { SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date(it.appointment.dateTime)) }
                 .mapValues { it.value.size }
                 .toSortedMap()
             GroupingInterval.YEAR -> appointments
-                .groupBy { SimpleDateFormat("yyyy", Locale.getDefault()).format(Date(it.dateTime)) }
+                .groupBy { SimpleDateFormat("yyyy", Locale.getDefault()).format(Date(it.appointment.dateTime)) }
                 .mapValues { it.value.size }
                 .toSortedMap()
-            GroupingInterval.ALL_TIME -> mapOf("За весь час" to appointments.size) // Для "За весь час" одна колонка
+            GroupingInterval.ALL_TIME -> mapOf("За весь час" to appointments.size)
         }
         _appointmentsByDate.value = dailyAppointments
     }
 
-    private suspend fun calculateRevenueByCategory(appointments: List<Appointment>) {
+    // Изменено: теперь принимает List<AppointmentWithClientAndService>
+    private fun calculateRevenueByCategory(appointments: List<AppointmentWithClientAndService>) {
         val revenuePerCategory = mutableMapOf<String, Int>()
-        appointments.forEach { appointment ->
-            val service = serviceRepository.getServiceById(appointment.serviceId)
-            val category = service?.category ?: "Невідома категорія" // ИЗМЕНЕНО: "Неизвестная категория" на "Невідома категорія"
-            revenuePerCategory[category] = (revenuePerCategory[category] ?: 0) + appointment.servicePrice
+        appointments.forEach { appointmentWithDetails ->
+            // Используем serviceCategory и servicePrice из AppointmentWithClientAndService
+            val category = appointmentWithDetails.serviceCategory
+            val price = appointmentWithDetails.appointment.servicePrice // Используем servicePrice из базового Appointment
+            revenuePerCategory[category] = (revenuePerCategory[category] ?: 0) + price
         }
-
         _revenueByCategory.value = revenuePerCategory
-    }
-}
-
-class StatisticsViewModelFactory(
-    private val appointmentRepository: AppointmentRepository,
-    private val clientRepository: ClientRepository,
-    private val serviceRepository: ServiceRepository
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(StatisticsViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return StatisticsViewModel(appointmentRepository, clientRepository, serviceRepository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

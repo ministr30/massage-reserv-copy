@@ -9,7 +9,6 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -37,6 +36,9 @@ import kotlin.system.exitProcess
 import com.massagepro.data.repository.AppointmentRepository
 import com.massagepro.data.repository.ClientRepository
 import com.massagepro.data.repository.ServiceRepository
+import com.massagepro.ui.statistics.StatisticsViewModelFactory // ЯВНЫЙ ИМПОРТ StatisticsViewModelFactory
+import android.util.Log
+
 
 // Импорты для MPAndroidChart
 import com.github.mikephil.charting.charts.BarChart
@@ -63,10 +65,12 @@ class StatisticsFragment : Fragment() {
     private val binding get() = _binding!!
     private val viewModel: StatisticsViewModel by viewModels {
         val database = (requireActivity().application as App).database
+        val clientRepository = ClientRepository(database.clientDao())
+        val serviceRepository = ServiceRepository(database.serviceDao())
         StatisticsViewModelFactory(
-            AppointmentRepository(database.appointmentDao(), ServiceRepository(database.serviceDao())),
-            ClientRepository(database.clientDao()),
-            ServiceRepository(database.serviceDao())
+            AppointmentRepository(database.appointmentDao(), serviceRepository, clientRepository),
+            clientRepository,
+            serviceRepository
         )
     }
 
@@ -310,7 +314,7 @@ class StatisticsFragment : Fragment() {
         // Настройка легенды для PieChart
         val pieLegend = pieChartRevenueByCategory.legend
         pieLegend.verticalAlignment = Legend.LegendVerticalAlignment.TOP
-        pieLegend.horizontalAlignment = Legend.LegendHorizontalAlignment.LEFT // Исправлено
+        pieLegend.horizontalAlignment = Legend.LegendHorizontalAlignment.LEFT // ИСПРАВЛЕНО: Использовать Legend.LegendHorizontalAlignment
         pieLegend.orientation = Legend.LegendOrientation.VERTICAL
         pieLegend.setDrawInside(false)
         pieLegend.xEntrySpace = 7f

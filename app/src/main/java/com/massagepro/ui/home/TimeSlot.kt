@@ -11,5 +11,6 @@ data class TimeSlot(
     val isBooked: Boolean,
     val bookedAppointment: Appointment? = null,
     val client: Client? = null,
-    val service: Service? = null
+    val service: Service? = null,
+    val shouldDisplay: Boolean = true // По умолчанию true, будем менять в ViewModel
 )

@@ -1,25 +1,20 @@
-package com.massagepro.ui.appointments
+package com.massagepro.ui.statistics
 
-import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.massagepro.data.repository.AppointmentRepository
 import com.massagepro.data.repository.ClientRepository
 import com.massagepro.data.repository.ServiceRepository
 
-// Фабрика для создания AppointmentsViewModel
-class AppointmentsViewModelFactory(
-    private val application: Application, // Application context, если нужен в ViewModel
+class StatisticsViewModelFactory(
     private val appointmentRepository: AppointmentRepository,
     private val clientRepository: ClientRepository,
     private val serviceRepository: ServiceRepository
-) : ViewModelProvider.Factory { // <-- ЭТО ВАЖНО: Реализация ViewModelProvider.Factory
-
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(AppointmentsViewModel::class.java)) {
+        if (modelClass.isAssignableFrom(StatisticsViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return AppointmentsViewModel(
-                application,
+            return StatisticsViewModel(
                 appointmentRepository,
                 clientRepository,
                 serviceRepository

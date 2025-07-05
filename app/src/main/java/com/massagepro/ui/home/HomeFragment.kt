@@ -18,9 +18,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.massagepro.App
 import com.massagepro.R
 import com.massagepro.data.model.Appointment
+import com.massagepro.data.model.AppointmentWithClientAndService
 import com.massagepro.databinding.FragmentHomeBinding
 import com.massagepro.ui.appointments.AppointmentsViewModel
-import com.massagepro.ui.appointments.AppointmentsViewModelFactory
+import com.massagepro.ui.appointments.AppointmentsViewModelFactory // ИМПОРТ ФАБРИКИ
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -37,9 +38,10 @@ class HomeFragment : Fragment() {
         val database = application.database
         val clientRepository = com.massagepro.data.repository.ClientRepository(database.clientDao())
         val serviceRepository = com.massagepro.data.repository.ServiceRepository(database.serviceDao())
+        // ИСПОЛЬЗУЕМ КОРРЕКТНУЮ ФАБРИКУ
         AppointmentsViewModelFactory(
             application, // Pass application context
-            com.massagepro.data.repository.AppointmentRepository(database.appointmentDao(), serviceRepository),
+            com.massagepro.data.repository.AppointmentRepository(database.appointmentDao(), serviceRepository, clientRepository), // ИСПРАВЛЕНО: Добавлен clientRepository
             clientRepository,
             serviceRepository
         )
@@ -74,7 +76,7 @@ class HomeFragment : Fragment() {
         setupRecyclerView()
         setupDateNavigation()
         setupHideFreeSlotsSwitch()
-        updateUIForSelectedDate() // <--- Вызов здесь
+        updateUIForSelectedDate()
     }
 
     private fun setupRecyclerView() {
@@ -278,8 +280,6 @@ class HomeFragment : Fragment() {
             }
             .show()
     }
-
-    // Метод onResume() полностью удален, так как он стал избыточным.
 
     override fun onDestroyView() {
         super.onDestroyView()

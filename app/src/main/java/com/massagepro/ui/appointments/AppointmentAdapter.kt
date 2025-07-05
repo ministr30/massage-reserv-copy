@@ -28,14 +28,17 @@ class AppointmentAdapter(private val onAppointmentClick: (AppointmentWithClientA
     class AppointmentViewHolder(private val binding: ItemAppointmentBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(appointmentWithDetails: AppointmentWithClientAndService, onAppointmentClick: (AppointmentWithClientAndService) -> Unit) {
             val clientNameText = binding.root.context.getString(R.string.client_prefix, appointmentWithDetails.clientName)
-            val serviceNameText = binding.root.context.getString(R.string.service_prefix, appointmentWithDetails.serviceName)
+            // ИСПРАВЛЕНО: serviceName теперь через appointment
+            val serviceNameText = binding.root.context.getString(R.string.service_prefix, appointmentWithDetails.appointment.serviceName)
 
             binding.textViewClientName.text = clientNameText
             binding.textViewServiceName.text = serviceNameText
 
             val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+            // ИСПРАВЛЕНО: dateTime теперь через appointment
             binding.textViewDateTime.text = dateFormat.format(Date(appointmentWithDetails.appointment.dateTime))
 
+            // ИСПРАВЛЕНО: servicePrice и status теперь через appointment
             val costText = binding.root.context.getString(R.string.cost_prefix, "%.2f".format(appointmentWithDetails.appointment.servicePrice))
             val statusText = binding.root.context.getString(R.string.status_prefix, appointmentWithDetails.appointment.status)
             binding.textViewAppointmentCostStatus.text = "$costText ($statusText)"

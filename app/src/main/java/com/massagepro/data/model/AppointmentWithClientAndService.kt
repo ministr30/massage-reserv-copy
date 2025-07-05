@@ -1,12 +1,13 @@
 package com.massagepro.data.model
 
 import androidx.room.Embedded
+import androidx.room.Relation
 
 data class AppointmentWithClientAndService(
-    @Embedded(prefix = "appt_") // <--- ДОБАВЛЕНО ЗДЕСЬ
-    val appointment: Appointment, // Теперь все поля из Appointment будут иметь префикс "appt_"
-    // Например, appointment.serviceName станет appt_serviceName в базе данных
-
-    val clientName: String,     // Это поле будет сопоставлено с колонкой clientName
-    val serviceName: String      // Это поле будет сопоставлено с колонкой serviceName
+    @Embedded(prefix = "appt_") val appointment: Appointment, // Добавляем префикс
+    val clientName: String,
+    val clientPhone: String,
+    val serviceCategory: String,
+    val serviceDuration: Int, // Это длительность из Service, а не из Appointment
+    val serviceBasePrice: Int
 )

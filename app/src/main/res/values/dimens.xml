@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="base_time_slot_height">72dp</dimen>
+    <dimen name="time_slot_margin_vertical">4dp</dimen>
+</resources>
