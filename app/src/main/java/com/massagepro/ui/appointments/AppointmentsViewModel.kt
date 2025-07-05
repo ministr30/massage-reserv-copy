@@ -6,7 +6,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
-import com.massagepro.App // Импорт App для доступа к строковым ресурсам
 import com.massagepro.R // Импорт R для доступа к строковым ресурсам
 import com.massagepro.data.model.Appointment
 import com.massagepro.data.model.AppointmentWithClientAndService
@@ -20,8 +19,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
@@ -127,63 +124,70 @@ class AppointmentsViewModel(
     }
 
     // Метод generateTimeSlots теперь suspend
-    private suspend fun generateTimeSlots(selectedDate: Calendar, appointmentsWithDetails: List<AppointmentWithClientAndService>): List<TimeSlot> {
+    suspend fun generateTimeSlots( // Сделал public для удобства тестирования, если нужно
+        selectedDate: Calendar,
+        appointmentsWithDetails: List<AppointmentWithClientAndService>
+    ): List<TimeSlot> {
         val allSlots = mutableListOf<TimeSlot>()
         val calendar = Calendar.getInstance().apply {
-            time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 9); set(
-            Calendar.MINUTE,
-            0
-        ); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            time = selectedDate.time
+            set(Calendar.HOUR_OF_DAY, 9)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
         }
-
         val endOfDay = Calendar.getInstance().apply {
-            time = selectedDate.time; set(Calendar.HOUR_OF_DAY, 21); set(
-            Calendar.MINUTE,
-            0
-        ); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            time = selectedDate.time
+            set(Calendar.HOUR_OF_DAY, 21)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
         }
-
-        val processedAppointmentIds = mutableSetOf<Int>()
 
         while (calendar.before(endOfDay)) {
             val slotStartTime = calendar.clone() as Calendar
-            calendar.add(Calendar.MINUTE, 30) // 30-minute slots
+            calendar.add(Calendar.MINUTE, 30)
             val slotEndTime = calendar.clone() as Calendar
 
             var isBooked = false
             var bookedAppointment: Appointment? = null
             var client: Client? = null
             var service: Service? = null
-            var shouldDisplay = true
+            var shouldDisplay = false
+            var appointmentEndTime: Calendar? = null // Добавлено для хранения времени завершения записи
 
-            var appointmentStartingHere: AppointmentWithClientAndService? = null
-            for (appWithDetails in appointmentsWithDetails) {
+            // Ищем запись, которая начинается ВНУТРИ текущего 30-минутного слота
+            // Если найдено несколько, берем первую (или можно выбрать по какой-то логике, например, самую короткую)
+            val appointmentStartingInSlot = appointmentsWithDetails.firstOrNull { appWithDetails ->
                 val appStart = Calendar.getInstance().apply { timeInMillis = appWithDetails.appointment.dateTime }
-                if (appStart.timeInMillis == slotStartTime.timeInMillis) {
-                    appointmentStartingHere = appWithDetails
-                    break
+                appStart.timeInMillis >= slotStartTime.timeInMillis && appStart.timeInMillis < slotEndTime.timeInMillis
+            }
+
+            if (appointmentStartingInSlot != null) {
+                isBooked = true
+                bookedAppointment = appointmentStartingInSlot.appointment
+                client = getClientById(appointmentStartingInSlot.appointment.clientId)
+                service = getServiceById(appointmentStartingInSlot.appointment.serviceId)
+                shouldDisplay = true
+
+                // Вычисляем и сохраняем время завершения для отображения
+                appointmentEndTime = Calendar.getInstance().apply {
+                    timeInMillis = bookedAppointment.dateTime + (bookedAppointment.serviceDuration * 60 * 1000)
                 }
             }
 
-            if (appointmentStartingHere != null) {
-                isBooked = true
-                bookedAppointment = appointmentStartingHere.appointment
-                client = getClientById(appointmentStartingHere.appointment.clientId)
-                service = getServiceById(appointmentStartingHere.appointment.serviceId)
-                shouldDisplay = true
-                processedAppointmentIds.add(bookedAppointment.id)
-            } else {
+            // Проверяем, перекрывается ли текущий слот какой-либо записью (даже если она началась раньше)
+            // Это нужно для пометки слотов как занятых, но без дублирования деталей
+            if (!isBooked) { // Проверяем только если слот еще не помечен как занятый по началу записи
                 for (appWithDetails in appointmentsWithDetails) {
                     val appStart = Calendar.getInstance().apply { timeInMillis = appWithDetails.appointment.dateTime }
-                    val appEnd = Calendar.getInstance().apply { timeInMillis = appWithDetails.appointment.dateTime }
-                    appEnd.add(Calendar.MINUTE, appWithDetails.appointment.serviceDuration)
+                    val appEnd = Calendar.getInstance().apply { timeInMillis = appWithDetails.appointment.dateTime + (appWithDetails.appointment.serviceDuration * 60 * 1000) }
 
-                    if (appWithDetails.overlaps(slotStartTime, slotEndTime) && !processedAppointmentIds.contains(appWithDetails.appointment.id)) {
+                    // Условие перекрытия:
+                    // (начало записи < конец слота) И (конец записи > начало слота)
+                    if (appStart.timeInMillis < slotEndTime.timeInMillis && appEnd.timeInMillis > slotStartTime.timeInMillis) {
                         isBooked = true
-                        bookedAppointment = appWithDetails.appointment
-                        client = getClientById(appWithDetails.appointment.clientId)
-                        service = getServiceById(appWithDetails.appointment.serviceId)
-                        shouldDisplay = false
+                        // shouldDisplay остается false, так как детали этой записи будут отображаться в слоте, где она начинается
                         break
                     }
                 }
@@ -197,52 +201,15 @@ class AppointmentsViewModel(
                     bookedAppointment,
                     client,
                     service,
-                    shouldDisplay
+                    shouldDisplay,
+                    appointmentEndTime // Передаем время завершения
                 )
             )
         }
-        return allSlots.filter { it.shouldDisplay }
-    }
-
-
-    fun getDisplayableTimeSlots(selectedDate: Calendar): Flow<List<TimeSlot>> {
-        val startOfDayMillis = selectedDate.getStartOfDayMillis()
-        val endOfDayMillis = selectedDate.getEndOfDayMillis()
-
-        val appointmentsFlow = getAppointmentsForDayFlow(startOfDayMillis, endOfDayMillis)
-
-        val generatedTimeSlotsFlow: Flow<List<TimeSlot>> = appointmentsFlow.map { appointments ->
-            // Вызываем suspend функцию generateTimeSlots внутри map, который сам по себе suspend
-            generateTimeSlots(selectedDate, appointments)
-        }
-
-        return generatedTimeSlotsFlow.combine(hideFreeSlots) { slots, hide ->
-            if (hide) slots.filter { it.bookedAppointment != null } else slots
-        }
-    }
-
-    private fun Calendar.getStartOfDayMillis(): Long = (clone() as Calendar).apply {
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }.timeInMillis
-
-    private fun Calendar.getEndOfDayMillis(): Long = (clone() as Calendar).apply {
-        set(Calendar.HOUR_OF_DAY, 23)
-        set(Calendar.MINUTE, 59)
-        set(Calendar.SECOND, 59)
-        set(Calendar.MILLISECOND, 999)
-    }.timeInMillis
-
-    private fun AppointmentWithClientAndService.overlaps(
-        slotStartTime: Calendar,
-        slotEndTime: Calendar
-    ): Boolean {
-        val appStart = Calendar.getInstance().apply { timeInMillis = appointment.dateTime }
-        val appEnd = Calendar.getInstance().apply { timeInMillis = appointment.dateTime }
-        val durationMinutes = if (appointment.serviceDuration > 0) appointment.serviceDuration else 0
-        appEnd.add(Calendar.MINUTE, durationMinutes)
-        return appStart.time.before(slotEndTime.time) && appEnd.time.after(slotStartTime.time)
+        // Возвращаем все слоты. Фильтрация по shouldDisplay должна происходить в HomeFragment
+        // или там, где используется этот список, чтобы показать только слоты с деталями.
+        // Или, если ты хочешь, чтобы generateTimeSlots возвращал ТОЛЬКО слоты с деталями,
+        // то оставь .filter { it.shouldDisplay }
+        return allSlots
     }
 }

@@ -136,14 +136,48 @@ class HomeFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                appointmentsViewModel.getDisplayableTimeSlots(selectedDate)
-                    .combine(appointmentsViewModel.hideFreeSlots) { timeSlots, hideFreeSlots ->
-                        Pair(timeSlots, hideFreeSlots)
-                    }
-                    .collectLatest { (timeSlots, hideFreeSlots) ->
-                        timeSlotAdapter.submitList(timeSlots)
+                // Получаем начало и конец дня для запроса записей
+                val startOfDay = Calendar.getInstance().apply {
+                    time = selectedDate.time
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                val endOfDay = Calendar.getInstance().apply {
+                    time = selectedDate.time
+                    set(Calendar.HOUR_OF_DAY, 23)
+                    set(Calendar.MINUTE, 59)
+                    set(Calendar.SECOND, 59)
+                    set(Calendar.MILLISECOND, 999)
+                }
 
-                        if (timeSlots.isEmpty() && hideFreeSlots) {
+                // Объединяем поток записей за день и состояние скрытия свободных слотов
+                appointmentsViewModel.getAppointmentsForDayFlow(startOfDay.timeInMillis, endOfDay.timeInMillis)
+                    .combine(appointmentsViewModel.hideFreeSlots) { appointmentsForDay, hideFreeSlots ->
+                        // Генерируем все временные слоты, передавая записи за день
+                        val allTimeSlots = appointmentsViewModel.generateTimeSlots(selectedDate, appointmentsForDay)
+
+                        // ИСПРАВЛЕНО: Логика фильтрации для скрытия последующих занятых слотов
+                        // Шаг 1: Отфильтровываем слоты-продолжения (которые заняты, но не являются началом записи)
+                        val slotsWithoutContinuations = allTimeSlots.filter { it.shouldDisplay || !it.isBooked }
+
+                        // Шаг 2: Применяем логику скрытия свободных слотов к оставшимся слотам
+                        val displayableTimeSlots = if (hideFreeSlots) {
+                            // Если скрываем свободные слоты, показываем только занятые слоты
+                            // (которые на этом этапе уже являются только начальными слотами записей)
+                            slotsWithoutContinuations.filter { it.isBooked }
+                        } else {
+                            // Если не скрываем, показываем все слоты, которые являются либо начальными слотами записей, либо свободными
+                            slotsWithoutContinuations
+                        }
+                        Pair(displayableTimeSlots, hideFreeSlots)
+                    }
+                    .collectLatest { (timeSlotsToDisplay, hideFreeSlots) ->
+                        timeSlotAdapter.submitList(timeSlotsToDisplay)
+
+                        // Обновляем видимость сообщения "нет записей"
+                        if (timeSlotsToDisplay.isEmpty() && hideFreeSlots) {
                             binding.recyclerViewTimeSlots.visibility = View.GONE
                             binding.textViewNoAppointmentsMessage.visibility = View.VISIBLE
                         } else {
@@ -151,17 +185,16 @@ class HomeFragment : Fragment() {
                             binding.textViewNoAppointmentsMessage.visibility = View.GONE
                         }
 
-                        val cal = selectedDate.clone() as Calendar
-                        val startOfDayMillis = cal.apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
-                        val endOfDayMillis = cal.apply { set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999) }.timeInMillis
-
-                        appointmentsViewModel.getAppointmentsForDayLiveData(startOfDayMillis, endOfDayMillis).observe(viewLifecycleOwner) { appointmentsForDay ->
-                            val totalRevenue = appointmentsForDay.sumOf { it.appointment.servicePrice }
-                            binding.textViewAppointmentsCount.text =
-                                getString(R.string.appointments_count_prefix, appointmentsForDay.size)
-                            binding.textViewTotalRevenue.text =
-                                getString(R.string.total_revenue_prefix, totalRevenue)
-                        }
+                        // Обновляем счетчик записей и общую выручку
+                        // Здесь мы используем исходный список appointmentsForDay из combine,
+                        // чтобы подсчитать общую выручку и количество ВСЕХ записей за день,
+                        // а не только отображаемых слотов.
+                        val appointmentsForDay = appointmentsViewModel.getAppointmentsForDayLiveData(startOfDay.timeInMillis, endOfDay.timeInMillis).value ?: emptyList()
+                        val totalRevenue = appointmentsForDay.sumOf { it.appointment.servicePrice }
+                        binding.textViewAppointmentsCount.text =
+                            getString(R.string.appointments_count_prefix, appointmentsForDay.size)
+                        binding.textViewTotalRevenue.text =
+                            getString(R.string.total_revenue_prefix, totalRevenue)
                     }
             }
         }

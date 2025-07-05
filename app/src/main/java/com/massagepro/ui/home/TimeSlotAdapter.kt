@@ -14,7 +14,6 @@ import androidx.core.content.ContextCompat
 import com.massagepro.data.model.Appointment
 import java.util.Calendar
 
-
 class TimeSlotAdapter(
     private val onBookClick: (TimeSlot) -> Unit,
     private val showAppointmentActionsDialog: (Appointment) -> Unit
@@ -36,7 +35,6 @@ class TimeSlotAdapter(
 
             binding.textViewTimeSlot.text = timeFormat.format(timeSlot.startTime.time)
 
-
             val currentTime = Calendar.getInstance()
             currentTime.set(Calendar.SECOND, 0)
             currentTime.set(Calendar.MILLISECOND, 0)
@@ -46,73 +44,67 @@ class TimeSlotAdapter(
             val baseSlotHeightPx = binding.root.context.resources.getDimensionPixelSize(R.dimen.base_time_slot_height)
             val verticalMarginPx = binding.root.context.resources.getDimensionPixelSize(R.dimen.time_slot_margin_vertical)
 
+            binding.buttonBook.visibility = View.GONE
+            binding.bookedLayout.visibility = View.GONE
+            binding.root.setOnClickListener(null)
+
+            val layoutParams = binding.cardViewTimeSlot.layoutParams
+            layoutParams.height = baseSlotHeightPx
+            binding.cardViewTimeSlot.layoutParams = layoutParams
 
             if (timeSlot.isBooked) {
-                binding.buttonBook.visibility = View.GONE
-                binding.bookedLayout.visibility = View.VISIBLE
+                if (timeSlot.shouldDisplay) {
+                    binding.bookedLayout.visibility = View.VISIBLE
 
-                val clientName = timeSlot.client?.name ?: binding.root.context.getString(R.string.unknown_client)
-                val serviceName = timeSlot.service?.category ?: binding.root.context.getString(R.string.unknown_service)
-                val statusText = binding.root.context.getString(R.string.appointment_status_prefix, timeSlot.bookedAppointment?.status ?: "")
-                // ИСПРАВЛЕНО: Доступ к servicePrice через timeSlot.bookedAppointment
-                val servicePrice = timeSlot.bookedAppointment?.servicePrice?.toString() ?: "0"
+                    val appointment = timeSlot.bookedAppointment
+                    if (appointment != null) {
+                        val clientName = timeSlot.client?.name ?: binding.root.context.getString(R.string.unknown_client)
+                        val serviceName = timeSlot.service?.category ?: binding.root.context.getString(R.string.unknown_service)
+                        val statusText = binding.root.context.getString(R.string.appointment_status_prefix, appointment.status)
+                        val servicePrice = appointment.servicePrice.toString()
 
-                binding.textViewClientName.text = clientName
-                binding.textViewServiceName.text = serviceName
-                binding.textViewAppointmentStatus.text = statusText
-                binding.textViewServicePrice.text = binding.root.context.getString(R.string.service_price_prefix, servicePrice)
+                        binding.textViewClientName.text = clientName
+                        binding.textViewServiceName.text = serviceName
+                        binding.textViewAppointmentStatus.text = statusText
+                        binding.textViewServicePrice.text = binding.root.context.getString(R.string.service_price_prefix, servicePrice)
 
-                binding.cardViewTimeSlot.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.lavender_booked_slot))
-                binding.textViewTimeSlot.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
-                binding.textViewClientName.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
-                binding.textViewServiceName.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
-                binding.textViewAppointmentStatus.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
-                binding.textViewServicePrice.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
+                        binding.cardViewTimeSlot.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.lavender_booked_slot))
+                        binding.textViewTimeSlot.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
+                        binding.textViewClientName.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
+                        binding.textViewServiceName.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
+                        binding.textViewAppointmentStatus.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
+                        binding.textViewServicePrice.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
 
+                        val durationMinutes = appointment.serviceDuration
+                        val numberOfSlots = (durationMinutes / 30.0).let { if (it > 0) Math.ceil(it).toInt() else 1 }
+                        val desiredHeight = baseSlotHeightPx * numberOfSlots + (numberOfSlots - 1) * verticalMarginPx
+                        layoutParams.height = desiredHeight
+                        binding.cardViewTimeSlot.layoutParams = layoutParams
 
-                // ИСПРАВЛЕНО: Доступ к serviceDuration через timeSlot.bookedAppointment
-                val durationMinutes = timeSlot.bookedAppointment?.serviceDuration ?: 30
-                val numberOfSlots = (durationMinutes / 30.0).let { if (it > 0) Math.ceil(it).toInt() else 1 }
+                        val displayedEndTime = timeSlot.appointmentEndTime ?: Calendar.getInstance().apply {
+                            timeInMillis = appointment.dateTime + (durationMinutes * 60 * 1000)
+                        }
+                        binding.textViewTimeSlot.text = "${timeFormat.format(timeSlot.startTime.time)} - ${timeFormat.format(displayedEndTime.time)}"
 
-                val desiredHeight = baseSlotHeightPx * numberOfSlots + (numberOfSlots - 1) * verticalMarginPx
-
-                val layoutParams = binding.cardViewTimeSlot.layoutParams
-                layoutParams.height = desiredHeight
-                binding.cardViewTimeSlot.layoutParams = layoutParams
-
-                val actualStartTime = Calendar.getInstance().apply { timeInMillis = timeSlot.bookedAppointment?.dateTime ?: 0L }
-                val actualEndTime = Calendar.getInstance().apply { timeInMillis = timeSlot.bookedAppointment?.dateTime ?: 0L }
-                actualEndTime.add(Calendar.MINUTE, durationMinutes)
-
-                binding.textViewTimeSlot.text = "${timeFormat.format(actualStartTime.time)} - ${timeFormat.format(actualEndTime.time)}"
-
-
-                timeSlot.bookedAppointment?.let { appointment ->
-                    binding.root.setOnClickListener { showAppointmentActionsDialog(appointment) }
+                        binding.root.setOnClickListener { showAppointmentActionsDialog(appointment) }
+                    } else {
+                        // Если appointment == null, показываем занятый слот без деталей
+                        binding.cardViewTimeSlot.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.lavender_booked_slot))
+                        binding.textViewTimeSlot.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
+                    }
+                } else {
+                    binding.cardViewTimeSlot.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.lavender_booked_slot))
+                    binding.textViewTimeSlot.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white))
                 }
             } else if (isPastSlot) {
-                binding.buttonBook.visibility = View.GONE
-                binding.bookedLayout.visibility = View.GONE
-                binding.root.setOnClickListener(null)
-
                 binding.cardViewTimeSlot.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.colorPastSlot))
                 binding.textViewTimeSlot.setTextColor(ContextCompat.getColor(binding.root.context, R.color.grey_text_disabled))
-
-                val layoutParams = binding.cardViewTimeSlot.layoutParams
-                layoutParams.height = baseSlotHeightPx
-                binding.cardViewTimeSlot.layoutParams = layoutParams
             } else {
                 binding.buttonBook.visibility = View.VISIBLE
-                binding.bookedLayout.visibility = View.GONE
-
                 binding.buttonBook.setOnClickListener { onBookClick(timeSlot) }
 
                 binding.cardViewTimeSlot.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.colorFreeSlot))
                 binding.textViewTimeSlot.setTextColor(ContextCompat.getColor(binding.root.context, R.color.black))
-
-                val layoutParams = binding.cardViewTimeSlot.layoutParams
-                layoutParams.height = baseSlotHeightPx
-                binding.cardViewTimeSlot.layoutParams = layoutParams
             }
         }
     }
