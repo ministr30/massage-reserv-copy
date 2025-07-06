@@ -42,6 +42,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:textSize="16sp"
                 android:text="@string/start_date_button" />
 
             <com.google.android.material.button.MaterialButton
@@ -51,6 +52,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
+                android:textSize="16sp"
                 android:text="@string/end_date_button" />
         </LinearLayout>
 
@@ -105,6 +107,22 @@
                 android:text="@string/chip_all_time" />
         </com.google.android.material.chip.ChipGroup>
 
+        <!-- Информация о выбранном периоде -->
+        <TextView
+            android:id="@+id/text_view_period_info"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textSize="14sp"
+            android:textStyle="italic"
+            android:gravity="center"
+            android:background="#F5F5F5"
+            android:padding="8dp"
+            app:layout_constraintTop_toBottomOf="@id/chip_group_period"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:text="Период: 06.06.2025 - 06.07.2025 (группировка по дням)" />
+
         <!-- Статистика -->
         <TextView
             android:id="@+id/text_view_total_appointments"
@@ -112,7 +130,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:textSize="18sp"
-            app:layout_constraintTop_toBottomOf="@id/chip_group_period"
+            app:layout_constraintTop_toBottomOf="@id/text_view_period_info"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             tools:text="@string/total_appointments_placeholder" />
@@ -151,12 +169,25 @@
             tools:text="@string/most_active_client_placeholder" />
 
         <!-- Графики -->
+        <TextView
+            android:id="@+id/text_view_appointments_chart_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Кількість записів по періодах"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            app:layout_constraintTop_toBottomOf="@id/text_view_most_active_client"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
         <com.github.mikephil.charting.charts.BarChart
             android:id="@+id/bar_chart_appointments"
             android:layout_width="0dp"
             android:layout_height="300dp"
-            android:layout_marginTop="24dp"
-            app:layout_constraintTop_toBottomOf="@id/text_view_most_active_client"
+            android:layout_marginTop="8dp"
+            app:layout_constraintTop_toBottomOf="@id/text_view_appointments_chart_title"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
@@ -164,13 +195,26 @@
             android:id="@+id/text_view_no_bar_chart_data"
             android:layout_width="0dp"
             android:layout_height="300dp"
-            android:layout_marginTop="24dp"
             android:gravity="center"
             android:text="@string/no_chart_data_appointments"
             android:textSize="16sp"
             android:textColor="@android:color/darker_gray"
             android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/text_view_most_active_client"
+            app:layout_constraintTop_toTopOf="@id/bar_chart_appointments"
+            app:layout_constraintBottom_toBottomOf="@id/bar_chart_appointments"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
+            android:id="@+id/text_view_revenue_chart_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Виручка по категоріях послуг"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            app:layout_constraintTop_toBottomOf="@id/bar_chart_appointments"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
@@ -178,8 +222,8 @@
             android:id="@+id/pie_chart_revenue_by_category"
             android:layout_width="0dp"
             android:layout_height="300dp"
-            android:layout_marginTop="24dp"
-            app:layout_constraintTop_toBottomOf="@id/bar_chart_appointments"
+            android:layout_marginTop="8dp"
+            app:layout_constraintTop_toBottomOf="@id/text_view_revenue_chart_title"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
@@ -187,13 +231,13 @@
             android:id="@+id/text_view_no_pie_chart_data"
             android:layout_width="0dp"
             android:layout_height="300dp"
-            android:layout_marginTop="24dp"
             android:gravity="center"
             android:text="@string/no_chart_data_revenue"
             android:textSize="16sp"
             android:textColor="@android:color/darker_gray"
             android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/pie_chart_revenue_by_category"
+            app:layout_constraintTop_toTopOf="@id/pie_chart_revenue_by_category"
+            app:layout_constraintBottom_toBottomOf="@id/pie_chart_revenue_by_category"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
@@ -204,7 +248,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="32dp"
             android:text="@string/backup_button"
-            app:layout_constraintTop_toBottomOf="@id/text_view_no_pie_chart_data"
+            app:layout_constraintTop_toBottomOf="@id/pie_chart_revenue_by_category"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
