@@ -20,6 +20,7 @@
     <color name="blue_500">#2196F3</color>
     <color name="blue_700">#1976D2</color>
     <color name="lavender_booked_slot">#9370DB</color>
+    <color name="colorBookedSlot">#9370DB</color>
     <color name="colorFreeSlot">#E0E0E0</color>
     <color name="colorPastSlot">#B0BEC5</color>
     <color name="grey_text_disabled">#757575</color>
