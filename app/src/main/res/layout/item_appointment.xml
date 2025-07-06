@@ -42,7 +42,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/text_view_client_name"
-            tools:text="Послуга: Класичний масаж (60 хв)" />
+            tools:text="Послуга: Масаж обличчя (60 хв)" />
 
         <TextView
             android:id="@+id/text_view_appointment_cost_status"

@@ -26,17 +26,15 @@ class AddEditServiceFragment : Fragment() {
     // УДАЛЕНО: private lateinit var switchServiceActive: SwitchMaterial
     private lateinit var buttonSaveService: Button
 
-    // Обновлено: Категории "Обгортання" и "Ендосфера" добавлены в список
-    // УДАЛЕНО: Категория "Інше" удалена из списка
     private val predefinedCategories = listOf(
-        "Класичний",
-        "Антицелюлітний",
-        "Спортивний",
-        "Розслабляючий",
-        "Лікувальний",
-        "Апаратний",
-        "Дитячий",
         "Масаж обличчя",
+        "Масаж спини",
+        "Загальний",
+        "Антицелюлітний",
+        "РФ ноги",
+        "РФ живіт",
+        "Кавітація ноги",
+        "Кавітація живіт",
         "Обгортання",
         "Ендосфера"
     )
