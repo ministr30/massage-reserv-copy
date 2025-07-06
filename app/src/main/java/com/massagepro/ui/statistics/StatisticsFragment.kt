@@ -136,6 +136,7 @@ class StatisticsFragment : Fragment() {
         setupActionButtons()
         setupCharts()
         setupChipGroup() // Вызов метода для настройки ChipGroup
+        updatePeriodInfo() // Инициализируем информацию о периоде
         observeViewModel()
         generateStatistics()
     }
@@ -167,6 +168,7 @@ class StatisticsFragment : Fragment() {
             R.id.chip_all_time -> GroupingInterval.ALL_TIME
             else -> GroupingInterval.DAY // По умолчанию
         }
+        updatePeriodInfo() // Обновляем информацию о периоде
         generateStatistics() // Перегенерируем статистику с новой группировкой
     }
 
@@ -291,6 +293,8 @@ class StatisticsFragment : Fragment() {
         xAxisAppointments.granularity = 1f
         xAxisAppointments.setCenterAxisLabels(false)
         xAxisAppointments.setAvoidFirstLastClipping(true)
+        xAxisAppointments.textSize = 10f
+        xAxisAppointments.labelRotationAngle = -45f
 
 
         // Отключаем правую ось Y для BarChart
@@ -352,14 +356,41 @@ class StatisticsFragment : Fragment() {
         val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
         binding.buttonSelectStartDateStats.text = dateFormat.format(startDate.time)
         binding.buttonSelectEndDateStats.text = dateFormat.format(endDate.time)
+        updatePeriodInfo()
+    }
+
+    private fun updatePeriodInfo() {
+        val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+        val groupingText = when (currentGrouping) {
+            GroupingInterval.DAY -> "дням"
+            GroupingInterval.WEEK -> "тижням"
+            GroupingInterval.MONTH -> "місяцям"
+            GroupingInterval.YEAR -> "рокам"
+            GroupingInterval.ALL_TIME -> "увесь час"
+        }
+        
+        val periodText = if (currentGrouping == GroupingInterval.ALL_TIME) {
+            "Період: Увесь час"
+        } else {
+            "Період: ${dateFormat.format(startDate.time)} - ${dateFormat.format(endDate.time)} (групування по $groupingText)"
+        }
+        
+        binding.textViewPeriodInfo.text = periodText
     }
 
     private fun observeViewModel() {
-        viewModel.totalAppointments.observe(viewLifecycleOwner) {
-            binding.textViewTotalAppointments.text = getString(R.string.total_appointments_prefix, it)
+        var currentAppointments = 0
+        var currentRevenue = 0
+        
+        viewModel.totalAppointments.observe(viewLifecycleOwner) { appointments ->
+            currentAppointments = appointments
+            binding.textViewTotalAppointments.text = getString(R.string.total_appointments_prefix, appointments)
+            updateAverageCheck(currentAppointments, currentRevenue)
         }
-        viewModel.totalRevenue.observe(viewLifecycleOwner) {
-            binding.textViewTotalRevenueStats.text = getString(R.string.total_revenue_prefix_stats, it)
+        viewModel.totalRevenue.observe(viewLifecycleOwner) { revenue ->
+            currentRevenue = revenue
+            binding.textViewTotalRevenueStats.text = getString(R.string.total_revenue_prefix_stats, revenue.toDouble())
+            updateAverageCheck(currentAppointments, currentRevenue)
         }
         viewModel.mostPopularService.observe(viewLifecycleOwner) {
             binding.textViewMostPopularService.text = getString(R.string.most_popular_service_prefix, it)
@@ -376,6 +407,34 @@ class StatisticsFragment : Fragment() {
             updatePieChartRevenueByCategory(data)
         }
     }
+    
+    private fun updateAverageCheck(appointments: Int, revenue: Int) {
+        val averageCheck = if (appointments > 0) {
+            revenue.toDouble() / appointments
+        } else {
+            0.0
+        }
+        
+        val averageText = "Середній чек: %.2f грн".format(averageCheck)
+        
+        // Обновляем информацию о периоде, добавляя средний чек
+        val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+        val groupingText = when (currentGrouping) {
+            GroupingInterval.DAY -> "дням"
+            GroupingInterval.WEEK -> "тижням"
+            GroupingInterval.MONTH -> "місяцям"
+            GroupingInterval.YEAR -> "рокам"
+            GroupingInterval.ALL_TIME -> "увесь час"
+        }
+        
+        val periodText = if (currentGrouping == GroupingInterval.ALL_TIME) {
+            "Період: Увесь час • $averageText"
+        } else {
+            "Період: ${dateFormat.format(startDate.time)} - ${dateFormat.format(endDate.time)} (групування по $groupingText) • $averageText"
+        }
+        
+        binding.textViewPeriodInfo.text = periodText
+    }
 
     @Suppress("SetterInsteadOfProperty") // Подавляем предупреждения для MPAndroidChart сеттеров
     private fun updateBarChartAppointments(data: Map<String, Int>) {
@@ -390,9 +449,42 @@ class StatisticsFragment : Fragment() {
             val entries = ArrayList<BarEntry>()
             val labels = ArrayList<String>()
             var i = 0f
-            data.entries.sortedBy { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(it.key)?.time }.forEach { (date, count) ->
+            
+            // Форматируем подписи в зависимости от группировки
+            val sortedData = data.entries.sortedBy { 
+                when (currentGrouping) {
+                    GroupingInterval.ALL_TIME -> 0L
+                    GroupingInterval.YEAR -> SimpleDateFormat("yyyy", Locale.getDefault()).parse(it.key)?.time ?: 0L
+                    GroupingInterval.MONTH -> SimpleDateFormat("yyyy-MM", Locale.getDefault()).parse(it.key)?.time ?: 0L
+                    else -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(it.key)?.time ?: 0L
+                }
+            }
+            
+            sortedData.forEach { (date, count) ->
                 entries.add(BarEntry(i, count.toFloat()))
-                labels.add(date) // Пока используем полную дату, можно будет форматировать позже
+                
+                // Форматируем подписи в зависимости от группировки
+                val formattedLabel = when (currentGrouping) {
+                    GroupingInterval.DAY -> {
+                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(date)?.let {
+                            SimpleDateFormat("dd.MM", Locale.getDefault()).format(it)
+                        } ?: date
+                    }
+                    GroupingInterval.WEEK -> {
+                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(date)?.let {
+                            SimpleDateFormat("dd.MM", Locale.getDefault()).format(it)
+                        } ?: date
+                    }
+                    GroupingInterval.MONTH -> {
+                        SimpleDateFormat("yyyy-MM", Locale.getDefault()).parse(date)?.let {
+                            SimpleDateFormat("MM.yyyy", Locale.getDefault()).format(it)
+                        } ?: date
+                    }
+                    GroupingInterval.YEAR -> date
+                    GroupingInterval.ALL_TIME -> "Всього"
+                }
+                
+                labels.add(formattedLabel)
                 i++
             }
 
@@ -407,7 +499,15 @@ class StatisticsFragment : Fragment() {
 
             // Устанавливаем форматтер для оси X
             barChartAppointments.xAxis.valueFormatter = IndexAxisValueFormatter(labels)
-            barChartAppointments.xAxis.labelCount = labels.size
+            
+            // Ограничиваем количество подписей для лучшей читаемости
+            val maxLabels = when {
+                labels.size <= 5 -> labels.size
+                labels.size <= 10 -> 5
+                labels.size <= 20 -> 7
+                else -> 10
+            }
+            barChartAppointments.xAxis.labelCount = maxLabels
             barChartAppointments.xAxis.setCenterAxisLabels(false)
 
             barChartAppointments.invalidate()
