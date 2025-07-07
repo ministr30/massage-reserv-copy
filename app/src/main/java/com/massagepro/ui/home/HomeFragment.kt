@@ -18,16 +18,17 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.massagepro.App
 import com.massagepro.R
 import com.massagepro.data.model.Appointment
-import com.massagepro.data.model.AppointmentWithClientAndService
 import com.massagepro.databinding.FragmentHomeBinding
 import com.massagepro.ui.appointments.AppointmentsViewModel
-import com.massagepro.ui.appointments.AppointmentsViewModelFactory // ИМПОРТ ФАБРИКИ
+import com.massagepro.ui.appointments.AppointmentsViewModelFactory
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import com.massagepro.data.model.AppointmentStatus
+import java.text.DecimalFormat // ИМПОРТИРУЕМ DecimalFormat
 
 class HomeFragment : Fragment() {
 
@@ -38,16 +39,18 @@ class HomeFragment : Fragment() {
         val database = application.database
         val clientRepository = com.massagepro.data.repository.ClientRepository(database.clientDao())
         val serviceRepository = com.massagepro.data.repository.ServiceRepository(database.serviceDao())
-        // ИСПОЛЬЗУЕМ КОРРЕКТНУЮ ФАБРИКУ
         AppointmentsViewModelFactory(
-            application, // Pass application context
-            com.massagepro.data.repository.AppointmentRepository(database.appointmentDao(), serviceRepository, clientRepository), // ИСПРАВЛЕНО: Добавлен clientRepository
+            application,
+            com.massagepro.data.repository.AppointmentRepository(database.appointmentDao(), serviceRepository, clientRepository),
             clientRepository,
             serviceRepository
         )
     }
     private lateinit var timeSlotAdapter: TimeSlotAdapter
     private var selectedDate: Calendar = Calendar.getInstance()
+
+    // Форматтер для денежных значений (для выручки)
+    private val currencyFormat = DecimalFormat("#,##0")
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -128,15 +131,12 @@ class HomeFragment : Fragment() {
         val dateFormat = SimpleDateFormat("EEEE, dd MMMM", Locale("uk", "UA"))
         binding.textViewSelectedDate.text = dateFormat.format(selectedDate.time)
 
-        // --- ИСПРАВЛЕНИЕ МЕРЦАНИЯ: Очищаем список и скрываем сообщение сразу ---
-        timeSlotAdapter.submitList(emptyList()) // Немедленно очищаем RecyclerView
-        binding.textViewNoAppointmentsMessage.visibility = View.GONE // Скрываем сообщение
-        binding.recyclerViewTimeSlots.visibility = View.VISIBLE // Убеждаемся, что RecyclerView виден, пока не придут новые данные
-        // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+        timeSlotAdapter.submitList(emptyList())
+        binding.textViewNoAppointmentsMessage.visibility = View.GONE
+        binding.recyclerViewTimeSlots.visibility = View.VISIBLE
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                // Получаем начало и конец дня для запроса записей
                 val startOfDay = Calendar.getInstance().apply {
                     time = selectedDate.time
                     set(Calendar.HOUR_OF_DAY, 0)
@@ -152,31 +152,22 @@ class HomeFragment : Fragment() {
                     set(Calendar.MILLISECOND, 999)
                 }
 
-                // Объединяем поток записей за день и состояние скрытия свободных слотов
                 appointmentsViewModel.getAppointmentsForDayFlow(startOfDay.timeInMillis, endOfDay.timeInMillis)
                     .combine(appointmentsViewModel.hideFreeSlots) { appointmentsForDay, hideFreeSlots ->
-                        // Генерируем все временные слоты, передавая записи за день
                         val allTimeSlots = appointmentsViewModel.generateTimeSlots(selectedDate, appointmentsForDay)
 
-                        // ИСПРАВЛЕНО: Логика фильтрации для скрытия последующих занятых слотов
-                        // Шаг 1: Отфильтровываем слоты-продолжения (которые заняты, но не являются началом записи)
                         val slotsWithoutContinuations = allTimeSlots.filter { it.shouldDisplay || !it.isBooked }
 
-                        // Шаг 2: Применяем логику скрытия свободных слотов к оставшимся слотам
                         val displayableTimeSlots = if (hideFreeSlots) {
-                            // Если скрываем свободные слоты, показываем только занятые слоты
-                            // (которые на этом этапе уже являются только начальными слотами записей)
                             slotsWithoutContinuations.filter { it.isBooked }
                         } else {
-                            // Если не скрываем, показываем все слоты, которые являются либо начальными слотами записей, либо свободными
                             slotsWithoutContinuations
                         }
-                        Pair(displayableTimeSlots, hideFreeSlots)
+                        Triple(displayableTimeSlots, hideFreeSlots, appointmentsForDay)
                     }
-                    .collectLatest { (timeSlotsToDisplay, hideFreeSlots) ->
+                    .collectLatest { (timeSlotsToDisplay, hideFreeSlots, allAppointmentsForToday) ->
                         timeSlotAdapter.submitList(timeSlotsToDisplay)
 
-                        // Обновляем видимость сообщения "нет записей"
                         if (timeSlotsToDisplay.isEmpty() && hideFreeSlots) {
                             binding.recyclerViewTimeSlots.visibility = View.GONE
                             binding.textViewNoAppointmentsMessage.visibility = View.VISIBLE
@@ -185,16 +176,20 @@ class HomeFragment : Fragment() {
                             binding.textViewNoAppointmentsMessage.visibility = View.GONE
                         }
 
-                        // Обновляем счетчик записей и общую выручку
-                        // Здесь мы используем исходный список appointmentsForDay из combine,
-                        // чтобы подсчитать общую выручку и количество ВСЕХ записей за день,
-                        // а не только отображаемых слотов.
-                        val appointmentsForDay = appointmentsViewModel.getAppointmentsForDayLiveData(startOfDay.timeInMillis, endOfDay.timeInMillis).value ?: emptyList()
-                        val totalRevenue = appointmentsForDay.sumOf { it.appointment.servicePrice }
+                        val activeAppointmentsCount = allAppointmentsForToday.count {
+                            it.appointment.status != AppointmentStatus.CANCELED.statusValue &&
+                                    it.appointment.status != AppointmentStatus.MISSED.statusValue
+                        }
+                        // ОСТАВЛЯЕМ КАК ЕСТЬ (Int в %d)
                         binding.textViewAppointmentsCount.text =
-                            getString(R.string.appointments_count_prefix, appointmentsForDay.size)
+                            getString(R.string.appointments_count_prefix, activeAppointmentsCount)
+
+                        val completedRevenue = allAppointmentsForToday.filter {
+                            it.appointment.status == AppointmentStatus.COMPLETED.statusValue
+                        }.sumOf { it.appointment.servicePrice }
+                        // ИСПРАВЛЕНО: Форматируем число в строку для %s в strings.xml
                         binding.textViewTotalRevenue.text =
-                            getString(R.string.total_revenue_prefix, totalRevenue)
+                            getString(R.string.total_revenue_prefix, currencyFormat.format(completedRevenue))
                     }
             }
         }
@@ -251,7 +246,7 @@ class HomeFragment : Fragment() {
                         lifecycleScope.launch {
                             appointmentsViewModel.updateAppointmentStatus(
                                 appointment.id,
-                                getString(R.string.appointment_status_completed)
+                                AppointmentStatus.COMPLETED.statusValue
                             )
                             Toast.makeText(
                                 requireContext(),
@@ -265,7 +260,7 @@ class HomeFragment : Fragment() {
                         lifecycleScope.launch {
                             appointmentsViewModel.updateAppointmentStatus(
                                 appointment.id,
-                                getString(R.string.appointment_status_cancelled)
+                                AppointmentStatus.CANCELED.statusValue
                             )
                             Toast.makeText(
                                 requireContext(),
@@ -279,7 +274,7 @@ class HomeFragment : Fragment() {
                         lifecycleScope.launch {
                             appointmentsViewModel.updateAppointmentStatus(
                                 appointment.id,
-                                getString(R.string.appointment_status_no_show)
+                                AppointmentStatus.MISSED.statusValue
                             )
                             Toast.makeText(
                                 requireContext(),

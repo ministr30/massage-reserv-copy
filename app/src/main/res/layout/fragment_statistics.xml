@@ -21,6 +21,7 @@
             android:text="@string/statistics_title"
             android:textSize="24sp"
             android:textStyle="bold"
+            android:textColor="?attr/colorOnSurface"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
@@ -56,7 +57,7 @@
                 android:text="@string/end_date_button" />
         </LinearLayout>
 
-        <!-- Выбор периода (ChipGroup ) -->
+        <!-- Выбор периода (ChipGroup  ) -->
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/chip_group_period"
             android:layout_width="0dp"
@@ -109,15 +110,16 @@
 
         <!-- Информация о выбранном периоде -->
         <TextView
-            android:id="@+id/text_view_period_info"
+            android:id="@+id/textViewPeriodInfo"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:textSize="14sp"
             android:textStyle="italic"
             android:gravity="center"
-            android:background="#F5F5F5"
             android:padding="8dp"
+            android:textColor="?attr/colorOnSurface"
+            android:background="?attr/colorSurface"
             app:layout_constraintTop_toBottomOf="@id/chip_group_period"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -130,7 +132,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:textSize="18sp"
-            app:layout_constraintTop_toBottomOf="@id/text_view_period_info"
+            android:textColor="?attr/colorOnSurface"
+            app:layout_constraintTop_toBottomOf="@id/textViewPeriodInfo"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             tools:text="@string/total_appointments_placeholder" />
@@ -141,6 +144,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:textSize="18sp"
+            android:textColor="?attr/colorOnSurface"
             app:layout_constraintTop_toBottomOf="@id/text_view_total_appointments"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -152,6 +156,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:textSize="18sp"
+            android:textColor="?attr/colorOnSurface"
             app:layout_constraintTop_toBottomOf="@id/text_view_total_revenue_stats"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -163,6 +168,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:textSize="18sp"
+            android:textColor="?attr/colorOnSurface"
             app:layout_constraintTop_toBottomOf="@id/text_view_most_popular_service"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -178,6 +184,7 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:gravity="center"
+            android:textColor="?attr/colorOnSurface"
             app:layout_constraintTop_toBottomOf="@id/text_view_most_active_client"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
@@ -198,7 +205,7 @@
             android:gravity="center"
             android:text="@string/no_chart_data_appointments"
             android:textSize="16sp"
-            android:textColor="@android:color/darker_gray"
+            android:textColor="?attr/colorOnSurface"
             android:visibility="gone"
             app:layout_constraintTop_toTopOf="@id/bar_chart_appointments"
             app:layout_constraintBottom_toBottomOf="@id/bar_chart_appointments"
@@ -214,6 +221,7 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:gravity="center"
+            android:textColor="?attr/colorOnSurface"
             app:layout_constraintTop_toBottomOf="@id/bar_chart_appointments"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
@@ -234,32 +242,34 @@
             android:gravity="center"
             android:text="@string/no_chart_data_revenue"
             android:textSize="16sp"
-            android:textColor="@android:color/darker_gray"
+            android:textColor="?attr/colorOnSurface"
             android:visibility="gone"
             app:layout_constraintTop_toTopOf="@id/pie_chart_revenue_by_category"
             app:layout_constraintBottom_toBottomOf="@id/pie_chart_revenue_by_category"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- Кнопки бэкапа -->
+        <!-- Кнопки бэкапа и восстановления -->
         <Button
-            android:id="@+id/backupButton"
+            android:id="@+id/button_backup"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="32dp"
+            android:layout_marginEnd="8dp"
             android:text="@string/backup_button"
             app:layout_constraintTop_toBottomOf="@id/pie_chart_revenue_by_category"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toStartOf="@+id/button_restore" />
 
         <Button
-            android:id="@+id/restoreButton"
+            android:id="@+id/button_restore"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="32dp"
+            android:layout_marginStart="8dp"
             android:text="@string/restore_button"
-            app:layout_constraintTop_toBottomOf="@id/backupButton"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/pie_chart_revenue_by_category"
+            app:layout_constraintStart_toEndOf="@+id/button_backup"
             app:layout_constraintEnd_toEndOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>

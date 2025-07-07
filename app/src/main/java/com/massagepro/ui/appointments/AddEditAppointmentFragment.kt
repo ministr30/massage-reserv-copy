@@ -18,7 +18,7 @@ import com.google.android.material.timepicker.TimeFormat
 import com.massagepro.App
 import com.massagepro.R
 import com.massagepro.data.model.Appointment
-import com.massagepro.data.model.Client // Добавлен импорт Client
+import com.massagepro.data.model.Client
 import com.massagepro.data.model.Service
 import com.massagepro.data.repository.AppointmentRepository
 import com.massagepro.data.repository.ClientRepository
@@ -31,6 +31,7 @@ import java.util.Locale
 import androidx.lifecycle.asFlow
 import android.app.AlertDialog
 import com.massagepro.databinding.FragmentAddEditAppointmentBinding
+import com.massagepro.data.model.AppointmentStatus
 
 class AddEditAppointmentFragment : Fragment() {
 
@@ -44,7 +45,7 @@ class AddEditAppointmentFragment : Fragment() {
         val serviceRepository = ServiceRepository(database.serviceDao())
         AppointmentsViewModelFactory(
             application,
-            AppointmentRepository(database.appointmentDao(), serviceRepository, clientRepository), // ИСПРАВЛЕНО: Добавлен clientRepository
+            AppointmentRepository(database.appointmentDao(), serviceRepository, clientRepository),
             clientRepository,
             serviceRepository
         )
@@ -57,9 +58,11 @@ class AddEditAppointmentFragment : Fragment() {
     private var selectedMinute: Int = 0
 
     private var selectedClientId: Int? = null
-    private var selectedClientName: String? = null // Для отображения имени клиента
+    private var selectedClientName: String? = null
     private var selectedService: Service? = null
     private var selectedNotes: String? = null
+    // ИСПРАВЛЕНО: Теперь использует .statusValue
+    private var currentAppointmentStatus: String = AppointmentStatus.PLANNED.statusValue
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -95,8 +98,10 @@ class AddEditAppointmentFragment : Fragment() {
             lifecycleScope.launch {
                 viewModel.getAppointmentById(appointmentId)?.let { appointment ->
                     selectedClientId = appointment.clientId
-                    selectedService = viewModel.getServiceById(appointment.serviceId) // Получаем полный объект Service
+                    selectedService = viewModel.getServiceById(appointment.serviceId)
                     selectedNotes = appointment.notes
+                    // Эту строку оставляем как есть, она получает статус из БД
+                    currentAppointmentStatus = appointment.status
 
                     binding.editTextDuration.setText(appointment.serviceDuration.toString())
                     binding.editTextPrice.setText(appointment.servicePrice.toString())
@@ -109,19 +114,20 @@ class AddEditAppointmentFragment : Fragment() {
 
                     updateDateAndTimeUI()
 
-                    // Устанавливаем выбранного клиента в AutoCompleteTextView
                     viewModel.getClientById(appointment.clientId)?.let { client ->
                         selectedClientName = client.name
                         (binding.autoCompleteTextClient as? AutoCompleteTextView)?.setText(client.name, false)
                     }
-                    // Устанавливаем выбранную услугу в AutoCompleteTextView
                     selectedService?.let { service ->
-                        (binding.autoCompleteTextService as? AutoCompleteTextView)?.setText(service.category, false)
+                        val serviceDisplayString = "${service.category} - ${service.duration} хвилин (${service.basePrice} грн)"
+                        (binding.autoCompleteTextService as? AutoCompleteTextView)?.setText(serviceDisplayString, false)
                     }
                 }
             }
         } else {
             updateDateAndTimeUI()
+            // ИСПРАВЛЕНО: Инициализация статуса для новой записи с .statusValue
+            currentAppointmentStatus = AppointmentStatus.PLANNED.statusValue
         }
     }
 
@@ -136,7 +142,7 @@ class AddEditAppointmentFragment : Fragment() {
                     val selectedClientNameFromList = parent.getItemAtPosition(position).toString()
                     val client = clients.find { it.name == selectedClientNameFromList }
                     selectedClientId = client?.id
-                    this@AddEditAppointmentFragment.selectedClientName = client?.name // Сохраняем имя для отображения
+                    this@AddEditAppointmentFragment.selectedClientName = client?.name
                 }
             }
         }
@@ -145,17 +151,17 @@ class AddEditAppointmentFragment : Fragment() {
     private fun setupServiceAutoComplete() {
         lifecycleScope.launch {
             viewModel.allServices.observe(viewLifecycleOwner) { services ->
-                val serviceNames = services.map { it.category }
-                val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, serviceNames)
+                val serviceDisplayStrings = services.map { service ->
+                    "${service.category} - ${service.duration} хвилин (${service.basePrice} грн)"
+                }
+                val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, serviceDisplayStrings)
                 (binding.autoCompleteTextService as? AutoCompleteTextView)?.setAdapter(adapter)
 
                 (binding.autoCompleteTextService as? AutoCompleteTextView)?.setOnItemClickListener { parent, _, position, _ ->
-                    val selectedServiceNameFromList = parent.getItemAtPosition(position).toString()
-                    val service = services.find { it.category == selectedServiceNameFromList }
-                    selectedService = service
+                    selectedService = services[position]
 
-                    binding.editTextDuration.setText(service?.duration?.toString() ?: "")
-                    binding.editTextPrice.setText(service?.basePrice?.toString() ?: "")
+                    binding.editTextDuration.setText(selectedService?.duration?.toString() ?: "")
+                    binding.editTextPrice.setText(selectedService?.basePrice?.toString() ?: "")
                 }
             }
         }
@@ -279,7 +285,8 @@ class AddEditAppointmentFragment : Fragment() {
                 serviceDuration = duration,
                 servicePrice = price,
                 dateTime = combinedDateTime,
-                notes = notes
+                notes = notes,
+                status = AppointmentStatus.PLANNED.statusValue // ИСПОЛЬЗУЕМ .statusValue для новой записи
             )
         } else {
             Appointment(
@@ -290,7 +297,8 @@ class AddEditAppointmentFragment : Fragment() {
                 serviceDuration = duration,
                 servicePrice = price,
                 dateTime = combinedDateTime,
-                notes = notes
+                notes = notes,
+                status = currentAppointmentStatus // Сохраняем существующий статус
             )
         }
 

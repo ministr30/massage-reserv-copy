@@ -28,6 +28,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.text.DecimalFormat // Импортируем DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -38,6 +39,7 @@ import com.massagepro.data.repository.ClientRepository
 import com.massagepro.data.repository.ServiceRepository
 import com.massagepro.ui.statistics.StatisticsViewModelFactory // ЯВНЫЙ ИМПОРТ StatisticsViewModelFactory
 import android.util.Log
+import android.util.TypedValue // ДОБАВЛЕНО: Импорт для TypedValue
 
 
 // Импорты для MPAndroidChart
@@ -54,6 +56,7 @@ import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.components.Legend
 import com.github.mikephil.charting.components.LegendEntry
+
 
 // Импорты для ChipGroup
 import com.google.android.material.chip.ChipGroup
@@ -87,6 +90,9 @@ class StatisticsFragment : Fragment() {
     // Объявляем ChipGroup
     private lateinit var chipGroupPeriod: ChipGroup
     private lateinit var currentGrouping: GroupingInterval
+
+    // Форматтер для денежных значений
+    private val currencyFormat = DecimalFormat("#,##0") // Без десятичных знаков, с разделителем тысяч
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -141,6 +147,16 @@ class StatisticsFragment : Fragment() {
         generateStatistics()
     }
 
+    // ДОБАВЛЕНО: Функция для получения цвета текста из текущей темы
+    private fun getThemeTextColor(): Int {
+        val typedValue = TypedValue()
+        // Используйте com.google.android.material.R.attr.colorOnSurface, так как вы используете Material Components.
+        // Если это не сработает, попробуйте R.attr.colorOnSurface (если он определен в вашей теме напрямую)
+        // или android.R.attr.textColorPrimary для более общего системного цвета текста.
+        requireContext().theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)
+        return typedValue.data
+    }
+
     private fun setupChipGroup() {
         // Устанавливаем слушатель для ChipGroup
         chipGroupPeriod.setOnCheckedStateChangeListener { _, checkedIds ->
@@ -173,12 +189,12 @@ class StatisticsFragment : Fragment() {
     }
 
     private fun setupActionButtons() {
-        binding.backupButton.setOnClickListener {
+        binding.buttonBackup.setOnClickListener {
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val fileName = "MassagePRO_backup_$timeStamp.db"
             backupLauncher.launch(fileName)
         }
-        binding.restoreButton.setOnClickListener {
+        binding.buttonRestore.setOnClickListener {
             restoreLauncher.launch(arrayOf("*/*"))
         }
     }
@@ -274,6 +290,8 @@ class StatisticsFragment : Fragment() {
 
     @Suppress("SetterInsteadOfProperty") // Подавляем предупреждения для MPAndroidChart сеттеров
     private fun setupCharts() {
+        val themeTextColor = getThemeTextColor() // ПОЛУЧАЕМ ЦВЕТ ТЕКСТА ИЗ ТЕМЫ
+
         // Настройка BarChart (Количество записей по дням)
         barChartAppointments.description.isEnabled = false
         barChartAppointments.setDrawGridBackground(false)
@@ -295,6 +313,7 @@ class StatisticsFragment : Fragment() {
         xAxisAppointments.setAvoidFirstLastClipping(true)
         xAxisAppointments.textSize = 10f
         xAxisAppointments.labelRotationAngle = -45f
+        xAxisAppointments.textColor = themeTextColor // ИСПОЛЬЗУЕМ ЦВЕТ ИЗ ТЕМЫ
 
 
         // Отключаем правую ось Y для BarChart
@@ -304,12 +323,13 @@ class StatisticsFragment : Fragment() {
         yAxisAppointments.setDrawGridLines(true)
         yAxisAppointments.granularity = 1f
         yAxisAppointments.axisMinimum = 0f
+        yAxisAppointments.textColor = themeTextColor // ИСПОЛЬЗУЕМ ЦВЕТ ИЗ ТЕМЫ
 
 
         // Настройка PieChart (Выручка по категориям)
         pieChartRevenueByCategory.description.isEnabled = false
         pieChartRevenueByCategory.setUsePercentValues(true)
-        pieChartRevenueByCategory.setEntryLabelColor(Color.BLACK)
+        pieChartRevenueByCategory.setEntryLabelColor(themeTextColor) // ИСПОЛЬЗУЕМ ЦВЕТ ИЗ ТЕМЫ
         pieChartRevenueByCategory.setEntryLabelTextSize(12f)
         pieChartRevenueByCategory.setDrawEntryLabels(false)
         pieChartRevenueByCategory.isHighlightPerTapEnabled = true
@@ -318,14 +338,15 @@ class StatisticsFragment : Fragment() {
         // Настройка легенды для PieChart
         val pieLegend = pieChartRevenueByCategory.legend
         pieLegend.verticalAlignment = Legend.LegendVerticalAlignment.TOP
-        pieLegend.horizontalAlignment = Legend.LegendHorizontalAlignment.LEFT // ИСПРАВЛЕНО: Использовать Legend.LegendHorizontalAlignment
+        // ИСПРАВЛЕНО: Правильный путь к LegendHorizontalAlignment
+        pieLegend.horizontalAlignment = Legend.LegendHorizontalAlignment.LEFT
         pieLegend.orientation = Legend.LegendOrientation.VERTICAL
         pieLegend.setDrawInside(false)
         pieLegend.xEntrySpace = 7f
         pieLegend.yEntrySpace = 5f
         pieLegend.yOffset = 0f
         pieLegend.textSize = 12f
-        pieLegend.textColor = Color.BLACK
+        pieLegend.textColor = themeTextColor // ИСПОЛЬЗУЕМ ЦВЕТ ИЗ ТЕМЫ
         // pieLegend.wordWrapEnabled = true // Этот атрибут может быть не поддерживаем в v3.1.0 или требует определенной настройки
     }
 
@@ -375,6 +396,7 @@ class StatisticsFragment : Fragment() {
             "Період: ${dateFormat.format(startDate.time)} - ${dateFormat.format(endDate.time)} (групування по $groupingText)"
         }
 
+        // ИСПРАВЛЕНО: Обновляем только текст периода, средний чек будет добавлен позже
         binding.textViewPeriodInfo.text = periodText
     }
 
@@ -389,7 +411,8 @@ class StatisticsFragment : Fragment() {
         }
         viewModel.totalRevenue.observe(viewLifecycleOwner) { revenue ->
             currentRevenue = revenue
-            binding.textViewTotalRevenueStats.text = getString(R.string.total_revenue_prefix_stats, revenue.toDouble())
+            // ИСПРАВЛЕНО: Форматирование totalRevenue без копеек и с разделителями тысяч
+            binding.textViewTotalRevenueStats.text = getString(R.string.total_revenue_prefix_stats, currencyFormat.format(revenue))
             updateAverageCheck(currentAppointments, currentRevenue)
         }
         viewModel.mostPopularService.observe(viewLifecycleOwner) {
@@ -415,7 +438,8 @@ class StatisticsFragment : Fragment() {
             0.0
         }
 
-        val averageText = "Середній чек: %.2f грн".format(averageCheck)
+        // ИСПРАВЛЕНО: Форматирование среднего чека без лишних нулей после запятой
+        val averageText = "Середній чек: ${currencyFormat.format(averageCheck)} грн"
 
         // Обновляем информацию о периоде, добавляя средний чек
         val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
@@ -438,6 +462,8 @@ class StatisticsFragment : Fragment() {
 
     @Suppress("SetterInsteadOfProperty") // Подавляем предупреждения для MPAndroidChart сеттеров
     private fun updateBarChartAppointments(data: Map<String, Int>) {
+        val themeTextColor = getThemeTextColor() // ПОЛУЧАЕМ ЦВЕТ ТЕКСТА ИЗ ТЕМЫ
+
         // Управляем видимостью графика и сообщения "нет данных"
         if (data.isEmpty()) {
             barChartAppointments.visibility = View.GONE
@@ -490,7 +516,7 @@ class StatisticsFragment : Fragment() {
 
             val dataSet = BarDataSet(entries, "Кількість записів")
             dataSet.color = ContextCompat.getColor(requireContext(), R.color.blue_500)
-            dataSet.valueTextColor = Color.BLACK
+            dataSet.valueTextColor = themeTextColor // ИСПОЛЬЗУЕМ ЦВЕТ ИЗ ТЕМЫ
             dataSet.valueTextSize = 10f
 
             val barData = BarData(dataSet)
@@ -517,6 +543,8 @@ class StatisticsFragment : Fragment() {
 
     @Suppress("SetterInsteadOfProperty") // Подавляем предупреждения для MPAndroidChart сеттеров
     private fun updatePieChartRevenueByCategory(data: Map<String, Int>) {
+        val themeTextColor = getThemeTextColor() // ПОЛУЧАЕМ ЦВЕТ ТЕКСТА ИЗ ТЕМЫ
+
         // Управляем видимостью графика и сообщения "нет данных"
         if (data.isEmpty()) {
             pieChartRevenueByCategory.visibility = View.GONE
@@ -552,7 +580,7 @@ class StatisticsFragment : Fragment() {
                 colors.add(color)
             }
             dataSet.colors = colors
-            dataSet.valueTextColor = Color.BLACK
+            dataSet.valueTextColor = themeTextColor // ИСПОЛЬЗУЕМ ЦВЕТ ИЗ ТЕМЫ
             dataSet.valueTextSize = 12f
 
             // Форматтер для отображения процентов

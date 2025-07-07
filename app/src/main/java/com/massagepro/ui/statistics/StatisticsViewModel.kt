@@ -15,7 +15,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.massagepro.data.model.Appointment
-import com.massagepro.data.model.AppointmentWithClientAndService // Добавлен импорт
+import com.massagepro.data.model.AppointmentWithClientAndService
+import com.massagepro.data.model.AppointmentStatus
 
 class StatisticsViewModel(
     private val appointmentRepository: AppointmentRepository,
@@ -44,44 +45,32 @@ class StatisticsViewModel(
     fun generateStatistics(startDate: Date, endDate: Date, groupingInterval: GroupingInterval) {
         viewModelScope.launch {
             try {
-                val allAppointments: List<Appointment> // Для подсчета общего количества и выручки
-                val appointmentsWithDetails: List<AppointmentWithClientAndService> // Для детализированных отчетов (графиков)
+                val allAppointments: List<Appointment>
+                val appointmentsWithDetails: List<AppointmentWithClientAndService>
+
+                val completedStatus = AppointmentStatus.COMPLETED.statusValue
 
                 if (groupingInterval == GroupingInterval.ALL_TIME) {
-                    // ИСПРАВЛЕНО: Теперь вызываем новый метод getAllAppointments()
-                    allAppointments = appointmentRepository.getAllAppointments().firstOrNull() ?: emptyList()
-                    appointmentsWithDetails = appointmentRepository.getAppointmentsWithClientAndService().firstOrNull() ?: emptyList()
+                    allAppointments = appointmentRepository.getAllAppointments(completedStatus).firstOrNull() ?: emptyList()
+                    appointmentsWithDetails = appointmentRepository.getAppointmentsWithClientAndService(completedStatus).firstOrNull() ?: emptyList()
 
                 } else {
                     appointmentsWithDetails = appointmentRepository.getAppointmentsForDay(
                         startDate.time,
-                        endDate.time
+                        endDate.time,
+                        completedStatus
                     ).firstOrNull() ?: emptyList()
-                    allAppointments = appointmentsWithDetails.map { it.appointment } // Извлекаем базовые Appointment
+                    allAppointments = appointmentsWithDetails.map { it.appointment }
                 }
 
-                // 1. Общее количество записей
                 _totalAppointments.value = allAppointments.size
-
-                // 2. Общая выручка
                 _totalRevenue.value = allAppointments.sumOf { it.servicePrice }
-
-                // 3. Самая популярная услуга
-                calculateMostPopularService(allAppointments) // Используем базовые Appointment
-
-                // 4. Самый активный клиент
-                calculateMostActiveClient(allAppointments) // Используем базовые Appointment
-
-                // 5. Данные для BarChart - ИЗМЕНЕНО: Теперь с учетом groupingInterval
-                // Здесь используем appointmentsWithDetails, так как нужны данные о дате
+                calculateMostPopularService(allAppointments)
+                calculateMostActiveClient(allAppointments)
                 calculateAppointmentsByDate(appointmentsWithDetails, groupingInterval)
-
-                // 6. Данные для PieChart
-                // Здесь используем appointmentsWithDetails, так как нужны данные о категории
                 calculateRevenueByCategory(appointmentsWithDetails)
 
             } catch (e: Exception) {
-                // Логируем ошибку
                 e.printStackTrace()
             }
         }
@@ -105,7 +94,6 @@ class StatisticsViewModel(
         } ?: "Немає даних"
     }
 
-    // Изменено: теперь принимает List<AppointmentWithClientAndService>
     private fun calculateAppointmentsByDate(appointments: List<AppointmentWithClientAndService>, groupingInterval: GroupingInterval) {
         val dailyAppointments = when (groupingInterval) {
             GroupingInterval.DAY -> appointments
@@ -133,13 +121,11 @@ class StatisticsViewModel(
         _appointmentsByDate.value = dailyAppointments
     }
 
-    // Изменено: теперь принимает List<AppointmentWithClientAndService>
     private fun calculateRevenueByCategory(appointments: List<AppointmentWithClientAndService>) {
         val revenuePerCategory = mutableMapOf<String, Int>()
         appointments.forEach { appointmentWithDetails ->
-            // Используем serviceCategory и servicePrice из AppointmentWithClientAndService
             val category = appointmentWithDetails.serviceCategory
-            val price = appointmentWithDetails.appointment.servicePrice // Используем servicePrice из базового Appointment
+            val price = appointmentWithDetails.appointment.servicePrice
             revenuePerCategory[category] = (revenuePerCategory[category] ?: 0) + price
         }
         _revenueByCategory.value = revenuePerCategory

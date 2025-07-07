@@ -6,7 +6,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
-import com.massagepro.R // Импорт R для доступа к строковым ресурсам
+import com.massagepro.R
 import com.massagepro.data.model.Appointment
 import com.massagepro.data.model.AppointmentWithClientAndService
 import com.massagepro.data.model.Client
@@ -14,13 +14,14 @@ import com.massagepro.data.model.Service
 import com.massagepro.data.repository.AppointmentRepository
 import com.massagepro.data.repository.ClientRepository
 import com.massagepro.data.repository.ServiceRepository
-import com.massagepro.ui.home.TimeSlot // Убедитесь, что импорт TimeSlot корректен
+import com.massagepro.ui.home.TimeSlot
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import com.massagepro.data.model.AppointmentStatus
 
 private const val PREFS_NAME = "com.massagepro.slot_prefs"
 private const val KEY_HIDE_FREE_SLOTS = "hide_free_slots"
@@ -42,7 +43,6 @@ class AppointmentsViewModel(
     val hideFreeSlots: StateFlow<Boolean> = _hideFreeSlots.asStateFlow()
 
     init {
-        // Запускаем проверку статусов при инициализации ViewModel
         checkAndAutoUpdateAppointmentStatuses()
     }
 
@@ -51,8 +51,10 @@ class AppointmentsViewModel(
         sharedPreferences.edit().putBoolean(KEY_HIDE_FREE_SLOTS, hide).apply()
     }
 
+    // ИСПРАВЛЕНО: Теперь использует метод, который НЕ фильтрует по статусу,
+    // чтобы отображать ВСЕ записи в общем списке
     val allAppointments: LiveData<List<AppointmentWithClientAndService>> =
-        appointmentRepository.getAppointmentsWithClientAndService().asLiveData()
+        appointmentRepository.getAppointmentsWithClientAndServiceIncludingAllStatuses().asLiveData()
 
     val allClients: LiveData<List<Client>> = clientRepository.getAllClients().asLiveData()
     val allServices: LiveData<List<Service>> = serviceRepository.getAllServices().asLiveData()
@@ -85,12 +87,15 @@ class AppointmentsViewModel(
         return serviceRepository.getServiceById(serviceId)
     }
 
+    // ИСПРАВЛЕНО: Теперь использует метод, который НЕ фильтрует по статусу,
+    // для отображения расписания на день (чтобы видеть все записи на день)
     fun getAppointmentsForDayLiveData(startOfDayMillis: Long, endOfDayMillis: Long): LiveData<List<AppointmentWithClientAndService>> {
-        return appointmentRepository.getAppointmentsForDay(startOfDayMillis, endOfDayMillis).asLiveData()
+        return appointmentRepository.getAppointmentsForDayIncludingAllStatuses(startOfDayMillis, endOfDayMillis).asLiveData()
     }
 
+    // ИСПРАВЛЕНО: Теперь использует метод, который НЕ фильтрует по статусу
     fun getAppointmentsForDayFlow(startOfDayMillis: Long, endOfDayMillis: Long): Flow<List<AppointmentWithClientAndService>> {
-        return appointmentRepository.getAppointmentsForDay(startOfDayMillis, endOfDayMillis)
+        return appointmentRepository.getAppointmentsForDayIncludingAllStatuses(startOfDayMillis, endOfDayMillis)
     }
 
     fun updateAppointmentStatus(appointmentId: Int, newStatus: String) {
@@ -105,15 +110,17 @@ class AppointmentsViewModel(
 
     private fun checkAndAutoUpdateAppointmentStatuses() {
         viewModelScope.launch {
-            val scheduledStatus = application.getString(R.string.appointment_status_scheduled)
-            val completedStatus = application.getString(R.string.appointment_status_completed)
+            // ИСПОЛЬЗУЕМ .statusValue для получения правильных строк статусов
+            val scheduledStatus = AppointmentStatus.PLANNED.statusValue
+            val completedStatus = AppointmentStatus.COMPLETED.statusValue
 
+            // Здесь getAppointmentsByStatus(scheduledStatus) будет искать записи со статусом "Заплановано"
             val scheduledAppointments = appointmentRepository.getAppointmentsByStatus(scheduledStatus)
 
             val currentTimeMillis = System.currentTimeMillis()
 
             scheduledAppointments.forEach { appointment ->
-                val appointmentEndTimeMillis = appointment.dateTime + (appointment.serviceDuration * 60 * 1000) // Время окончания записи
+                val appointmentEndTimeMillis = appointment.dateTime + (appointment.serviceDuration * 60 * 1000)
 
                 if (currentTimeMillis >= appointmentEndTimeMillis) {
                     val updatedAppointment = appointment.copy(status = completedStatus)
@@ -123,8 +130,7 @@ class AppointmentsViewModel(
         }
     }
 
-    // Метод generateTimeSlots теперь suspend
-    suspend fun generateTimeSlots( // Сделал public для удобства тестирования, если нужно
+    suspend fun generateTimeSlots(
         selectedDate: Calendar,
         appointmentsWithDetails: List<AppointmentWithClientAndService>
     ): List<TimeSlot> {
@@ -154,10 +160,8 @@ class AppointmentsViewModel(
             var client: Client? = null
             var service: Service? = null
             var shouldDisplay = false
-            var appointmentEndTime: Calendar? = null // Добавлено для хранения времени завершения записи
+            var appointmentEndTime: Calendar? = null
 
-            // Ищем запись, которая начинается ВНУТРИ текущего 30-минутного слота
-            // Если найдено несколько, берем первую (или можно выбрать по какой-то логике, например, самую короткую)
             val appointmentStartingInSlot = appointmentsWithDetails.firstOrNull { appWithDetails ->
                 val appStart = Calendar.getInstance().apply { timeInMillis = appWithDetails.appointment.dateTime }
                 appStart.timeInMillis >= slotStartTime.timeInMillis && appStart.timeInMillis < slotEndTime.timeInMillis
@@ -170,24 +174,18 @@ class AppointmentsViewModel(
                 service = getServiceById(appointmentStartingInSlot.appointment.serviceId)
                 shouldDisplay = true
 
-                // Вычисляем и сохраняем время завершения для отображения
                 appointmentEndTime = Calendar.getInstance().apply {
                     timeInMillis = bookedAppointment.dateTime + (bookedAppointment.serviceDuration * 60 * 1000)
                 }
             }
 
-            // Проверяем, перекрывается ли текущий слот какой-либо записью (даже если она началась раньше)
-            // Это нужно для пометки слотов как занятых, но без дублирования деталей
-            if (!isBooked) { // Проверяем только если слот еще не помечен как занятый по началу записи
+            if (!isBooked) {
                 for (appWithDetails in appointmentsWithDetails) {
                     val appStart = Calendar.getInstance().apply { timeInMillis = appWithDetails.appointment.dateTime }
                     val appEnd = Calendar.getInstance().apply { timeInMillis = appWithDetails.appointment.dateTime + (appWithDetails.appointment.serviceDuration * 60 * 1000) }
 
-                    // Условие перекрытия:
-                    // (начало записи < конец слота) И (конец записи > начало слота)
                     if (appStart.timeInMillis < slotEndTime.timeInMillis && appEnd.timeInMillis > slotStartTime.timeInMillis) {
                         isBooked = true
-                        // shouldDisplay остается false, так как детали этой записи будут отображаться в слоте, где она начинается
                         break
                     }
                 }
@@ -202,14 +200,10 @@ class AppointmentsViewModel(
                     client,
                     service,
                     shouldDisplay,
-                    appointmentEndTime // Передаем время завершения
+                    appointmentEndTime
                 )
             )
         }
-        // Возвращаем все слоты. Фильтрация по shouldDisplay должна происходить в HomeFragment
-        // или там, где используется этот список, чтобы показать только слоты с деталями.
-        // Или, если ты хочешь, чтобы generateTimeSlots возвращал ТОЛЬКО слоты с деталями,
-        // то оставь .filter { it.shouldDisplay }
         return allSlots
     }
 }

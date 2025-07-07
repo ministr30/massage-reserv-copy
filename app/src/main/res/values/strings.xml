@@ -12,7 +12,7 @@
     <string name="service_details_format">%1$d грн, %2$d хв</string>
     <string name="appointment_status_scheduled">Заплановано</string>
     <string name="appointment_status_completed">Завершено</string>
-    <string name="service_price_prefix">Вартість: %s грн</string>
+    <string name="service_price_prefix">Вартість: %s грн</string> <!-- ИЗМЕНЕНО: %s -->
     <string name="appointment_status_cancelled">Скасовано</string>
     <string name="appointment_status_no_show">Неявка</string>
 
@@ -55,8 +55,8 @@
     <string name="create_appointment_button_text">Створити запис</string>
     <string name="add_client_description">Додати нового клієнта</string>
     <string name="service_hint">Оберіть послугу</string>
-    <string name="total_appointments_prefix">Всього записів: %1$d</string>
-    <string name="total_revenue_prefix_stats">Загальна виручка: %.2f грн</string>
+    <string name="total_appointments_prefix">Всього записів: %s</string> <!-- ИЗМЕНЕНО: %s -->
+    <string name="total_revenue_prefix_stats">Загальна виручка: %s грн</string> <!-- ИЗМЕНЕНО: %s -->
     <string name="most_popular_service_prefix">Найпопулярніша послуга: %1$s</string>
     <string name="most_active_client_prefix">Найактивніший клієнт: %1$s</string>
     <string name="delete_client_confirmation_title">Видалити клієнта?</string>
@@ -71,8 +71,8 @@
     <string name="chip_month">Місяць</string>
     <string name="chip_year">Рік</string>
     <string name="chip_all_time">За весь час</string>
-    <string name="total_appointments_placeholder">Всього записів: %d</string>
-    <string name="total_revenue_placeholder">Загальна виручка: %.2f грн</string>
+    <string name="total_appointments_placeholder">Всього записів: %s</string> <!-- ИЗМЕНЕНО: %s -->
+    <string name="total_revenue_placeholder">Загальна виручка: %s грн</string> <!-- ИЗМЕНЕНО: %s -->
     <string name="most_popular_service_placeholder">Найпопулярніша послуга: %s</string>
     <string name="most_active_client_placeholder">Найактивніший клієнт: %s</string>
     <string name="search_client_hint">Пошук за ім\'ям або телефоном</string>
@@ -152,7 +152,7 @@
     <string name="total_cost_prefix">Підсумкова вартість:</string>
     <string name="total_cost_sunday_surcharge_suffix"> (+100 грн за неділю)</string>
     <string name="appointments_count_prefix">Записів на сьогодні: %1$d</string>
-    <string name="total_revenue_prefix">Загальна виручка: %1$d грн</string>
+    <string name="total_revenue_prefix">Загальна виручка: %s грн</string> <!-- ИЗМЕНЕНО: %s -->
     <string name="occupied_slot_info_prefix">Зайнято:</string>
     <string name="unknown_client_service">Невідомо</string>
     <string name="selected_date_time_format">Обрано: %1$s, %2$s</string>
@@ -181,5 +181,8 @@
     <string name="weekend_surcharge_message">Додати 100 грн до вартості у вихідний день?</string>
     <string name="dialog_yes">Так</string>
     <string name="dialog_no">Ні</string>
+
+    <string name="chart_title_appointments_by_period">Кількість записів по періодах</string>
+    <string name="chart_title_revenue_by_category">Виручка по категоріях послуг</string>
 
 </resources>

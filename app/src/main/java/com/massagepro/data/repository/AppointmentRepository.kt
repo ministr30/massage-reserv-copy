@@ -4,19 +4,23 @@ import com.massagepro.data.dao.AppointmentDao
 import com.massagepro.data.model.Appointment
 import com.massagepro.data.model.AppointmentWithClientAndService
 import kotlinx.coroutines.flow.Flow
+import com.massagepro.data.model.AppointmentStatus
 
 class AppointmentRepository(
     private val appointmentDao: AppointmentDao,
     private val serviceRepository: ServiceRepository,
     private val clientRepository: ClientRepository
 ) {
-    fun getAppointmentsWithClientAndService(): Flow<List<AppointmentWithClientAndService>> {
-        return appointmentDao.getAppointmentsWithClientAndService()
+    fun getAppointmentsWithClientAndService(status: String): Flow<List<AppointmentWithClientAndService>> {
+        return appointmentDao.getAppointmentsWithClientAndService(status)
     }
 
-    // НОВЫЙ МЕТОД: Получение всех базовых записей Appointment
-    fun getAllAppointments(): Flow<List<Appointment>> {
-        return appointmentDao.getAllAppointments()
+    fun getAppointmentsWithClientAndServiceIncludingAllStatuses(): Flow<List<AppointmentWithClientAndService>> {
+        return appointmentDao.getAppointmentsWithClientAndServiceIncludingAllStatuses()
+    }
+
+    fun getAllAppointments(status: String): Flow<List<Appointment>> {
+        return appointmentDao.getAllAppointments(status)
     }
 
     suspend fun insertAppointment(appointment: Appointment) {
@@ -39,8 +43,12 @@ class AppointmentRepository(
         return appointmentDao.getConflictingAppointments(newStart, newEnd, excludeAppointmentId)
     }
 
-    fun getAppointmentsForDay(startOfDayMillis: Long, endOfDayMillis: Long): Flow<List<AppointmentWithClientAndService>> {
-        return appointmentDao.getAppointmentsForDay(startOfDayMillis, endOfDayMillis)
+    fun getAppointmentsForDay(startOfDayMillis: Long, endOfDayMillis: Long, status: String): Flow<List<AppointmentWithClientAndService>> {
+        return appointmentDao.getAppointmentsForDay(startOfDayMillis, endOfDayMillis, status)
+    }
+
+    fun getAppointmentsForDayIncludingAllStatuses(startOfDayMillis: Long, endOfDayMillis: Long): Flow<List<AppointmentWithClientAndService>> {
+        return appointmentDao.getAppointmentsForDayIncludingAllStatuses(startOfDayMillis, endOfDayMillis)
     }
 
     suspend fun getAppointmentsByStatus(status: String): List<Appointment> {
