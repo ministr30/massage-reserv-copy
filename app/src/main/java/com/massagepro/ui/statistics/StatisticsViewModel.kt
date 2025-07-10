@@ -1,10 +1,8 @@
 package com.massagepro.ui.statistics
-import java.util.Calendar
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.massagepro.data.repository.AppointmentRepository
 import com.massagepro.data.repository.ClientRepository
@@ -42,18 +40,20 @@ class StatisticsViewModel(
     private val _revenueByCategory = MutableLiveData<Map<String, Int>>()
     val revenueByCategory: LiveData<Map<String, Int>> = _revenueByCategory
 
+    /**
+     * Генерирует статистику по выбранному периоду и группировке.
+     * Для ALL_TIME игнорирует startDate/endDate.
+     */
     fun generateStatistics(startDate: Date, endDate: Date, groupingInterval: GroupingInterval) {
         viewModelScope.launch {
             try {
                 val allAppointments: List<Appointment>
                 val appointmentsWithDetails: List<AppointmentWithClientAndService>
-
                 val completedStatus = AppointmentStatus.COMPLETED.statusValue
 
                 if (groupingInterval == GroupingInterval.ALL_TIME) {
                     allAppointments = appointmentRepository.getAllAppointments(completedStatus).firstOrNull() ?: emptyList()
                     appointmentsWithDetails = appointmentRepository.getAppointmentsWithClientAndService(completedStatus).firstOrNull() ?: emptyList()
-
                 } else {
                     appointmentsWithDetails = appointmentRepository.getAppointmentsForDay(
                         startDate.time,
@@ -94,16 +94,20 @@ class StatisticsViewModel(
         } ?: "Немає даних"
     }
 
-    private fun calculateAppointmentsByDate(appointments: List<AppointmentWithClientAndService>, groupingInterval: GroupingInterval) {
-        val dailyAppointments = when (groupingInterval) {
+    private fun calculateAppointmentsByDate(
+        appointments: List<AppointmentWithClientAndService>,
+        groupingInterval: GroupingInterval
+    ) {
+        val grouped: Map<String, Int> = when (groupingInterval) {
             GroupingInterval.DAY -> appointments
                 .groupBy { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(it.appointment.dateTime)) }
                 .mapValues { it.value.size }
                 .toSortedMap()
             GroupingInterval.WEEK -> appointments
                 .groupBy {
-                    val cal = Calendar.getInstance().apply { timeInMillis = it.appointment.dateTime }
-                    cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                    // Неделя начинается с понедельника
+                    val cal = java.util.Calendar.getInstance().apply { timeInMillis = it.appointment.dateTime }
+                    cal.set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.MONDAY)
                     SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
                 }
                 .mapValues { it.value.size }
@@ -118,7 +122,7 @@ class StatisticsViewModel(
                 .toSortedMap()
             GroupingInterval.ALL_TIME -> mapOf("За весь час" to appointments.size)
         }
-        _appointmentsByDate.value = dailyAppointments
+        _appointmentsByDate.value = grouped
     }
 
     private fun calculateRevenueByCategory(appointments: List<AppointmentWithClientAndService>) {

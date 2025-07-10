@@ -13,7 +13,7 @@
         android:padding="16dp"
         tools:context=".ui.statistics.StatisticsFragment">
 
-        <!-- Заголовок -->
+        <!-- Заголовок и иконка календаря -->
         <TextView
             android:id="@+id/text_view_statistics_title"
             android:layout_width="wrap_content"
@@ -23,41 +23,26 @@
             android:textStyle="bold"
             android:textColor="?attr/colorOnSurface"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent" />
-
-        <!-- Диапазон дат -->
-        <LinearLayout
-            android:id="@+id/date_range_layout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="horizontal"
-            android:weightSum="2"
-            app:layout_constraintTop_toBottomOf="@id/text_view_statistics_title"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            app:layout_constraintEnd_toStartOf="@+id/button_calendar"
+            app:layout_constraintBottom_toBottomOf="@+id/button_calendar"
+            />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/button_select_start_date_stats"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="16sp"
-                android:text="@string/start_date_button" />
+        <!-- Иконка календаря для ручного выбора дат -->
+        <ImageButton
+            android:id="@+id/button_calendar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/select_date"
+            android:src="@drawable/ic_calendar"
+            app:tint="?attr/colorOnSurface"
+        app:layout_constraintTop_toTopOf="@id/text_view_statistics_title"
+        app:layout_constraintBottom_toBottomOf="@id/text_view_statistics_title"
+        app:layout_constraintEnd_toEndOf="parent"
+        />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/button_select_end_date_stats"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:textSize="16sp"
-                android:text="@string/end_date_button" />
-        </LinearLayout>
-
-        <!-- Выбор периода (ChipGroup  ) -->
+        <!-- Быстрые фильтры периодов -->
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/chip_group_period"
             android:layout_width="0dp"
@@ -68,16 +53,9 @@
             app:chipSpacingVertical="4dp"
             app:singleSelection="true"
             app:selectionRequired="true"
-            app:layout_constraintTop_toBottomOf="@id/date_range_layout"
+            app:layout_constraintTop_toBottomOf="@id/text_view_statistics_title"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chip_day"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/chip_day" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_week"
@@ -94,6 +72,20 @@
                 android:text="@string/chip_month" />
 
             <com.google.android.material.chip.Chip
+                android:id="@+id/chip_3_months"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/chip_3_months" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_6_months"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/chip_6_months" />
+
+            <com.google.android.material.chip.Chip
                 android:id="@+id/chip_year"
                 style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
@@ -108,7 +100,7 @@
                 android:text="@string/chip_all_time" />
         </com.google.android.material.chip.ChipGroup>
 
-        <!-- Информация о выбранном периоде -->
+        <!-- Информация о выбранном периоде и средний чек -->
         <TextView
             android:id="@+id/textViewPeriodInfo"
             android:layout_width="0dp"
@@ -123,9 +115,9 @@
             app:layout_constraintTop_toBottomOf="@id/chip_group_period"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            tools:text="Период: 06.06.2025 - 06.07.2025 (группировка по дням)" />
+            tools:text="Період: 01.07.2025 - 07.07.2025 (групування по дням) • Середній чек: 850 грн" />
 
-        <!-- Статистика -->
+        <!-- KPI-блоки -->
         <TextView
             android:id="@+id/text_view_total_appointments"
             android:layout_width="0dp"
@@ -174,13 +166,13 @@
             app:layout_constraintEnd_toEndOf="parent"
             tools:text="@string/most_active_client_placeholder" />
 
-        <!-- Графики -->
+        <!-- График количества записей -->
         <TextView
             android:id="@+id/text_view_appointments_chart_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="Кількість записів по періодах"
+            android:text="@string/chart_title_appointments_by_period"
             android:textSize="16sp"
             android:textStyle="bold"
             android:gravity="center"
@@ -212,12 +204,13 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- Круговая диаграмма по категориям -->
         <TextView
             android:id="@+id/text_view_revenue_chart_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="Виручка по категоріях послуг"
+            android:text="@string/chart_title_revenue_by_category"
             android:textSize="16sp"
             android:textStyle="bold"
             android:gravity="center"
@@ -249,7 +242,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- Кнопки бэкапа и восстановления -->
+        <!-- Кнопки backup/restore -->
         <Button
             android:id="@+id/button_backup"
             android:layout_width="0dp"
@@ -260,6 +253,14 @@
             app:layout_constraintTop_toBottomOf="@id/pie_chart_revenue_by_category"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/button_restore" />
+        <Button
+            android:id="@+id/button_back_drilldown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/drilldown_back"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
 
         <Button
             android:id="@+id/button_restore"

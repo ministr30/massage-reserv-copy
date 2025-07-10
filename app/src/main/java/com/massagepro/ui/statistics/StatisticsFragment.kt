@@ -1,18 +1,14 @@
 package com.massagepro.ui.statistics
 
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
-
 import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.content.Intent
-import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -22,45 +18,31 @@ import androidx.lifecycle.lifecycleScope
 import com.massagepro.App
 import com.massagepro.R
 import com.massagepro.databinding.FragmentStatisticsBinding
+import com.massagepro.data.repository.AppointmentRepository
+import com.massagepro.data.repository.ClientRepository
+import com.massagepro.data.repository.ServiceRepository
+import com.massagepro.ui.statistics.StatisticsViewModelFactory
+import com.github.mikephil.charting.charts.BarChart
+import com.github.mikephil.charting.charts.PieChart
+import com.github.mikephil.charting.data.*
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.formatter.ValueFormatter
+import com.github.mikephil.charting.components.Legend
+import com.github.mikephil.charting.components.LegendEntry
+import com.github.mikephil.charting.listener.OnChartValueSelectedListener
+import com.github.mikephil.charting.highlight.Highlight
+import com.github.mikephil.charting.data.Entry
+import com.google.android.material.chip.ChipGroup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.text.DecimalFormat // Импортируем DecimalFormat
+import java.text.DecimalFormat
 import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
-import kotlin.system.exitProcess
-import com.massagepro.data.repository.AppointmentRepository
-import com.massagepro.data.repository.ClientRepository
-import com.massagepro.data.repository.ServiceRepository
-import com.massagepro.ui.statistics.StatisticsViewModelFactory // ЯВНЫЙ ИМПОРТ StatisticsViewModelFactory
-import android.util.Log
-import android.util.TypedValue // ДОБАВЛЕНО: Импорт для TypedValue
-
-
-// Импорты для MPAndroidChart
-import com.github.mikephil.charting.charts.BarChart
-import com.github.mikephil.charting.charts.PieChart
-import com.github.mikephil.charting.data.BarData
-import com.github.mikephil.charting.data.BarDataSet
-import com.github.mikephil.charting.data.BarEntry
-import com.github.mikephil.charting.data.PieData
-import com.github.mikephil.charting.data.PieDataSet
-import com.github.mikephil.charting.data.PieEntry
-import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
-import com.github.mikephil.charting.components.XAxis
-import com.github.mikephil.charting.formatter.ValueFormatter
-import com.github.mikephil.charting.components.Legend
-import com.github.mikephil.charting.components.LegendEntry
-
-
-// Импорты для ChipGroup
-import com.google.android.material.chip.ChipGroup
-
+import java.util.*
 
 class StatisticsFragment : Fragment() {
 
@@ -77,38 +59,29 @@ class StatisticsFragment : Fragment() {
         )
     }
 
-    private var startDate: Calendar = Calendar.getInstance().apply { add(Calendar.MONTH, -1); set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
-    private var endDate: Calendar = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999) }
-
+    private var startDate: Calendar = Calendar.getInstance()
+    private var endDate: Calendar = Calendar.getInstance()
     private lateinit var backupLauncher: ActivityResultLauncher<String>
     private lateinit var restoreLauncher: ActivityResultLauncher<Array<String>>
-
-    // Объявляем переменные для графиков
     private lateinit var barChartAppointments: BarChart
     private lateinit var pieChartRevenueByCategory: PieChart
-
-    // Объявляем ChipGroup
     private lateinit var chipGroupPeriod: ChipGroup
-    private lateinit var currentGrouping: GroupingInterval
-
-    // Форматтер для денежных значений
-    private val currencyFormat = DecimalFormat("#,##0") // Без десятичных знаков, с разделителем тысяч
+    private var currentGrouping: GroupingInterval = GroupingInterval.MONTH
+    private var currentPeriodType: PeriodType = PeriodType.THREE_MONTHS
+    private var lastDrillDown: Pair<PeriodType, GroupingInterval>? = null
+    private var lastDrillDownDates: Pair<Calendar, Calendar>? = null
+    private var barChartLabels: List<String> = emptyList()
+    private val currencyFormat = DecimalFormat("#,##0")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         backupLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/x-sqlite3")) { uri: Uri? ->
             uri?.let {
-                lifecycleScope.launch(Dispatchers.IO) {
-                    backupDatabase(it)
-                }
+                lifecycleScope.launch(Dispatchers.IO) { backupDatabase(it) }
             }
         }
-
         restoreLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-            uri?.let {
-                showRestoreConfirmationDialog(it)
-            }
+            uri?.let { showRestoreConfirmationDialog(it) }
         }
     }
 
@@ -123,69 +96,144 @@ class StatisticsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(v.paddingLeft, systemBars.top, v.paddingRight, v.paddingBottom)
             insets
         }
-
-        // Инициализация графиков
         barChartAppointments = binding.barChartAppointments
         pieChartRevenueByCategory = binding.pieChartRevenueByCategory
-
-        // Инициализация ChipGroup
         chipGroupPeriod = binding.chipGroupPeriod
-        currentGrouping = GroupingInterval.DAY // Устанавливаем группировку по умолчанию
 
-        setupDatePickers()
         setupActionButtons()
         setupCharts()
-        setupChipGroup() // Вызов метода для настройки ChipGroup
-        updatePeriodInfo() // Инициализируем информацию о периоде
+        setupChipGroup()
+        setupCalendarButton()
+        updatePeriodInfo()
         observeViewModel()
-        generateStatistics()
+        setPeriodAndGrouping(PeriodType.THREE_MONTHS)
     }
 
-    // ДОБАВЛЕНО: Функция для получения цвета текста из текущей темы
-    private fun getThemeTextColor(): Int {
-        val typedValue = TypedValue()
-        // Используйте com.google.android.material.R.attr.colorOnSurface, так как вы используете Material Components.
-        // Если это не сработает, попробуйте R.attr.colorOnSurface (если он определен в вашей теме напрямую)
-        // или android.R.attr.textColorPrimary для более общего системного цвета текста.
-        requireContext().theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)
-        return typedValue.data
+    private fun setupCalendarButton() {
+        binding.buttonCalendar.setOnClickListener {
+            showCustomDateRangeDialog()
+        }
     }
 
     private fun setupChipGroup() {
-        // Устанавливаем слушатель для ChipGroup
-        chipGroupPeriod.setOnCheckedStateChangeListener { _, checkedIds ->
-            if (checkedIds.isNotEmpty()) {
-                val checkedId = checkedIds[0] // Получаем ID выбранного чипа
-                updateGroupingInterval(checkedId)
-            } else {
-                // Если ни один чип не выбран (что не должно произойти с selectionRequired="true")
-                // Можно установить значение по умолчанию или ничего не делать
-                updateGroupingInterval(R.id.chip_day) // Устанавливаем по умолчанию "День"
-                chipGroupPeriod.check(R.id.chip_day)
+        chipGroupPeriod.setOnCheckedChangeListener { _, checkedId ->
+            when (checkedId) {
+                R.id.chip_week -> setPeriodAndGrouping(PeriodType.WEEK)
+                R.id.chip_month -> setPeriodAndGrouping(PeriodType.MONTH)
+                R.id.chip_3_months -> setPeriodAndGrouping(PeriodType.THREE_MONTHS)
+                R.id.chip_6_months -> setPeriodAndGrouping(PeriodType.SIX_MONTHS)
+                R.id.chip_year -> setPeriodAndGrouping(PeriodType.YEAR)
+                R.id.chip_all_time -> setPeriodAndGrouping(PeriodType.ALL_TIME)
             }
         }
-
-        // Устанавливаем начальное состояние (по умолчанию "День")
-        chipGroupPeriod.check(R.id.chip_day)
+        chipGroupPeriod.check(R.id.chip_3_months)
     }
 
-    private fun updateGroupingInterval(checkedId: Int) {
-        currentGrouping = when (checkedId) {
-            R.id.chip_day -> GroupingInterval.DAY
-            R.id.chip_week -> GroupingInterval.WEEK
-            R.id.chip_month -> GroupingInterval.MONTH
-            R.id.chip_year -> GroupingInterval.YEAR
-            R.id.chip_all_time -> GroupingInterval.ALL_TIME
-            else -> GroupingInterval.DAY // По умолчанию
+    private fun setPeriodAndGrouping(periodType: PeriodType) {
+        currentPeriodType = periodType
+        val now = Calendar.getInstance()
+        when (periodType) {
+            PeriodType.WEEK -> {
+                startDate = Calendar.getInstance().apply {
+                    firstDayOfWeek = Calendar.MONDAY
+                    set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                    setToStartOfDay()
+                }
+                endDate = Calendar.getInstance().apply {
+                    firstDayOfWeek = Calendar.MONDAY
+                    set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
+                    setToEndOfDay()
+                }
+                currentGrouping = GroupingInterval.DAY
+            }
+            PeriodType.MONTH -> {
+                startDate = Calendar.getInstance().apply {
+                    set(Calendar.DAY_OF_MONTH, 1)
+                    setToStartOfDay()
+                }
+                endDate = Calendar.getInstance().apply {
+                    set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+                    setToEndOfDay()
+                }
+                currentGrouping = GroupingInterval.DAY
+            }
+            PeriodType.THREE_MONTHS -> {
+                val cal = Calendar.getInstance()
+                cal.set(Calendar.DAY_OF_MONTH, 1)
+                cal.add(Calendar.MONTH, -2)
+                startDate = cal.clone() as Calendar
+                startDate.setToStartOfDay()
+                endDate = Calendar.getInstance().apply {
+                    set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+                    setToEndOfDay()
+                }
+                currentGrouping = GroupingInterval.MONTH
+            }
+            PeriodType.SIX_MONTHS -> {
+                val cal = Calendar.getInstance()
+                cal.set(Calendar.DAY_OF_MONTH, 1)
+                cal.add(Calendar.MONTH, -5)
+                startDate = cal.clone() as Calendar
+                startDate.setToStartOfDay()
+                endDate = Calendar.getInstance().apply {
+                    set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+                    setToEndOfDay()
+                }
+                currentGrouping = GroupingInterval.MONTH
+            }
+            PeriodType.YEAR -> {
+                startDate = Calendar.getInstance().apply {
+                    set(Calendar.MONTH, Calendar.JANUARY)
+                    set(Calendar.DAY_OF_MONTH, 1)
+                    setToStartOfDay()
+                }
+                endDate = Calendar.getInstance().apply {
+                    set(Calendar.MONTH, Calendar.DECEMBER)
+                    set(Calendar.DAY_OF_MONTH, 31)
+                    setToEndOfDay()
+                }
+                currentGrouping = GroupingInterval.MONTH
+            }
+            PeriodType.ALL_TIME -> {
+                startDate = Calendar.getInstance().apply { time = Date(0) }.setToStartOfDay()
+                endDate = Calendar.getInstance().setToEndOfDay()
+                currentGrouping = GroupingInterval.YEAR
+            }
+            PeriodType.CUSTOM -> {
+                // Для кастомного периода startDate/endDate выставляются вручную
+            }
         }
-        updatePeriodInfo() // Обновляем информацию о периоде
-        generateStatistics() // Перегенерируем статистику с новой группировкой
+        updateDateDisplay()
+        generateStatistics()
+    }
+
+    private fun showCustomDateRangeDialog() {
+        val now = Calendar.getInstance()
+        val start = startDate.clone() as Calendar
+        val end = endDate.clone() as Calendar
+
+        DatePickerDialog(requireContext(), { _, year, month, dayOfMonth ->
+            start.set(year, month, dayOfMonth, 0, 0, 0)
+            DatePickerDialog(requireContext(), { _, year2, month2, dayOfMonth2 ->
+                end.set(year2, month2, dayOfMonth2, 23, 59, 59)
+                startDate = start
+                endDate = end
+                currentGrouping = if (daysBetween(start.time, end.time) > 31) GroupingInterval.MONTH else GroupingInterval.DAY
+                updateDateDisplay()
+                generateStatistics()
+                chipGroupPeriod.clearCheck()
+            }, end.get(Calendar.YEAR), end.get(Calendar.MONTH), end.get(Calendar.DAY_OF_MONTH)).show()
+        }, start.get(Calendar.YEAR), start.get(Calendar.MONTH), start.get(Calendar.DAY_OF_MONTH)).show()
+    }
+
+    private fun daysBetween(start: Date, end: Date): Int {
+        val diff = end.time - start.time
+        return (diff / (1000 * 60 * 60 * 24)).toInt()
     }
 
     private fun setupActionButtons() {
@@ -203,14 +251,10 @@ class StatisticsFragment : Fragment() {
         val app = requireActivity().application as App
         val database = app.database
         val dbFile = requireContext().getDatabasePath(database.openHelper.databaseName)
-
         try {
             if (database.isOpen) {
-                database.query("PRAGMA wal_checkpoint(FULL);", emptyArray()).use {
-                    it.moveToFirst()
-                }
+                database.query("PRAGMA wal_checkpoint(FULL);", emptyArray()).use { it.moveToFirst() }
             }
-
             requireContext().contentResolver.openOutputStream(destinationUri)?.use { outputStream ->
                 FileInputStream(dbFile).use { inputStream ->
                     inputStream.copyTo(outputStream)
@@ -220,7 +264,6 @@ class StatisticsFragment : Fragment() {
                 Toast.makeText(requireContext(), getString(R.string.backup_success), Toast.LENGTH_LONG).show()
             }
         } catch (e: Exception) {
-            Log.e("StatisticsFragment", "Backup failed", e)
             withContext(Dispatchers.Main) {
                 val errorMessage = e.message ?: "Невідома ошибка"
                 Toast.makeText(requireContext(), getString(R.string.backup_error, errorMessage), Toast.LENGTH_LONG).show()
@@ -245,21 +288,11 @@ class StatisticsFragment : Fragment() {
         val app = requireActivity().application as App
         val dbPath = requireContext().getDatabasePath(app.database.openHelper.databaseName).absolutePath
         val dbFile = File(dbPath)
-
         val walFile = File("$dbPath-wal")
         val shmFile = File("$dbPath-shm")
-
-        if (app.database.isOpen) {
-            app.database.close()
-        }
-
-        if (walFile.exists()) {
-            walFile.delete()
-        }
-        if (shmFile.exists()) {
-            shmFile.delete()
-        }
-
+        if (app.database.isOpen) app.database.close()
+        if (walFile.exists()) walFile.delete()
+        if (shmFile.exists()) shmFile.delete()
         try {
             requireContext().contentResolver.openInputStream(backupUri)?.use { inputStream ->
                 FileOutputStream(dbFile).use { outputStream ->
@@ -271,7 +304,6 @@ class StatisticsFragment : Fragment() {
                 restartApp()
             }
         } catch (e: Exception) {
-            Log.e("StatisticsFragment", "Restore failed", e)
             withContext(Dispatchers.Main) {
                 Toast.makeText(requireContext(), getString(R.string.restore_error, e.message), Toast.LENGTH_LONG).show()
             }
@@ -285,25 +317,17 @@ class StatisticsFragment : Fragment() {
         val componentName = intent!!.component
         val mainIntent = Intent.makeRestartActivityTask(componentName)
         context.startActivity(mainIntent)
-        exitProcess(0)
+        kotlin.system.exitProcess(0)
     }
 
-    @Suppress("SetterInsteadOfProperty") // Подавляем предупреждения для MPAndroidChart сеттеров
     private fun setupCharts() {
-        val themeTextColor = getThemeTextColor() // ПОЛУЧАЕМ ЦВЕТ ТЕКСТА ИЗ ТЕМЫ
-
-        // Настройка BarChart (Количество записей по дням)
+        val themeTextColor = getThemeTextColor()
         barChartAppointments.description.isEnabled = false
         barChartAppointments.setDrawGridBackground(false)
         barChartAppointments.setDrawBarShadow(false)
         barChartAppointments.setPinchZoom(true)
         barChartAppointments.isDoubleTapToZoomEnabled = false
-
-        // Отключаем легенду для BarChart, так как у нас только один набор данных
         barChartAppointments.legend.isEnabled = false
-
-
-        // Настройка оси X для BarChart
         val xAxisAppointments = barChartAppointments.xAxis
         xAxisAppointments.position = XAxis.XAxisPosition.BOTTOM
         xAxisAppointments.setDrawGridLines(false)
@@ -313,32 +337,22 @@ class StatisticsFragment : Fragment() {
         xAxisAppointments.setAvoidFirstLastClipping(true)
         xAxisAppointments.textSize = 10f
         xAxisAppointments.labelRotationAngle = -45f
-        xAxisAppointments.textColor = themeTextColor // ИСПОЛЬЗУЕМ ЦВЕТ ИЗ ТЕМЫ
-
-
-        // Отключаем правую ось Y для BarChart
+        xAxisAppointments.textColor = themeTextColor
         barChartAppointments.axisRight.isEnabled = false
-        // Настройка левой оси Y для BarChart
         val yAxisAppointments = barChartAppointments.axisLeft
         yAxisAppointments.setDrawGridLines(true)
         yAxisAppointments.granularity = 1f
         yAxisAppointments.axisMinimum = 0f
-        yAxisAppointments.textColor = themeTextColor // ИСПОЛЬЗУЕМ ЦВЕТ ИЗ ТЕМЫ
-
-
-        // Настройка PieChart (Выручка по категориям)
+        yAxisAppointments.textColor = themeTextColor
         pieChartRevenueByCategory.description.isEnabled = false
         pieChartRevenueByCategory.setUsePercentValues(true)
-        pieChartRevenueByCategory.setEntryLabelColor(themeTextColor) // ИСПОЛЬЗУЕМ ЦВЕТ ИЗ ТЕМЫ
+        pieChartRevenueByCategory.setEntryLabelColor(themeTextColor)
         pieChartRevenueByCategory.setEntryLabelTextSize(12f)
         pieChartRevenueByCategory.setDrawEntryLabels(false)
         pieChartRevenueByCategory.isHighlightPerTapEnabled = true
         pieChartRevenueByCategory.animateY(1400)
-
-        // Настройка легенды для PieChart
         val pieLegend = pieChartRevenueByCategory.legend
         pieLegend.verticalAlignment = Legend.LegendVerticalAlignment.TOP
-        // ИСПРАВЛЕНО: Правильный путь к LegendHorizontalAlignment
         pieLegend.horizontalAlignment = Legend.LegendHorizontalAlignment.LEFT
         pieLegend.orientation = Legend.LegendOrientation.VERTICAL
         pieLegend.setDrawInside(false)
@@ -346,37 +360,16 @@ class StatisticsFragment : Fragment() {
         pieLegend.yEntrySpace = 5f
         pieLegend.yOffset = 0f
         pieLegend.textSize = 12f
-        pieLegend.textColor = themeTextColor // ИСПОЛЬЗУЕМ ЦВЕТ ИЗ ТЕМЫ
-        // pieLegend.wordWrapEnabled = true // Этот атрибут может быть не поддерживаем в v3.1.0 или требует определенной настройки
+        pieLegend.textColor = themeTextColor
     }
 
-    private fun setupDatePickers() {
-        updateDateDisplay()
-        binding.buttonSelectStartDateStats.setOnClickListener { showDatePicker(true) }
-        binding.buttonSelectEndDateStats.setOnClickListener { showDatePicker(false) }
-    }
-
-    private fun showDatePicker(isStartDate: Boolean) {
-        val calendar = if (isStartDate) startDate else endDate
-        val year = calendar.get(Calendar.YEAR)
-        val month = calendar.get(Calendar.MONTH)
-        val day = calendar.get(Calendar.DAY_OF_MONTH)
-
-        DatePickerDialog(requireContext(), { _, selectedYear, selectedMonth, selectedDay ->
-            if (isStartDate) {
-                startDate.set(selectedYear, selectedMonth, selectedDay, 0, 0, 0)
-            } else {
-                endDate.set(selectedYear, selectedMonth, selectedDay, 23, 59, 59)
-            }
-            updateDateDisplay()
-            generateStatistics()
-        }, year, month, day).show()
+    private fun getThemeTextColor(): Int {
+        val typedValue = android.util.TypedValue()
+        requireContext().theme.resolveAttribute(android.R.attr.textColorPrimary, typedValue, true)
+        return ContextCompat.getColor(requireContext(), typedValue.resourceId)
     }
 
     private fun updateDateDisplay() {
-        val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
-        binding.buttonSelectStartDateStats.text = dateFormat.format(startDate.time)
-        binding.buttonSelectEndDateStats.text = dateFormat.format(endDate.time)
         updatePeriodInfo()
     }
 
@@ -389,21 +382,17 @@ class StatisticsFragment : Fragment() {
             GroupingInterval.YEAR -> "рокам"
             GroupingInterval.ALL_TIME -> "увесь час"
         }
-
         val periodText = if (currentGrouping == GroupingInterval.ALL_TIME) {
             "Період: Увесь час"
         } else {
             "Період: ${dateFormat.format(startDate.time)} - ${dateFormat.format(endDate.time)} (групування по $groupingText)"
         }
-
-        // ИСПРАВЛЕНО: Обновляем только текст периода, средний чек будет добавлен позже
         binding.textViewPeriodInfo.text = periodText
     }
 
     private fun observeViewModel() {
         var currentAppointments = 0
         var currentRevenue = 0
-
         viewModel.totalAppointments.observe(viewLifecycleOwner) { appointments ->
             currentAppointments = appointments
             binding.textViewTotalAppointments.text = getString(R.string.total_appointments_prefix, appointments)
@@ -411,7 +400,6 @@ class StatisticsFragment : Fragment() {
         }
         viewModel.totalRevenue.observe(viewLifecycleOwner) { revenue ->
             currentRevenue = revenue
-            // ИСПРАВЛЕНО: Форматирование totalRevenue без копеек и с разделителями тысяч
             binding.textViewTotalRevenueStats.text = getString(R.string.total_revenue_prefix_stats, currencyFormat.format(revenue))
             updateAverageCheck(currentAppointments, currentRevenue)
         }
@@ -421,27 +409,17 @@ class StatisticsFragment : Fragment() {
         viewModel.mostActiveClient.observe(viewLifecycleOwner) {
             binding.textViewMostActiveClient.text = getString(R.string.most_active_client_prefix, it)
         }
-        // Наблюдаем за данными для BarChart
         viewModel.appointmentsByDate.observe(viewLifecycleOwner) { data ->
             updateBarChartAppointments(data)
         }
-        // Наблюдаем за данными для PieChart
         viewModel.revenueByCategory.observe(viewLifecycleOwner) { data ->
             updatePieChartRevenueByCategory(data)
         }
     }
 
     private fun updateAverageCheck(appointments: Int, revenue: Int) {
-        val averageCheck = if (appointments > 0) {
-            revenue.toDouble() / appointments
-        } else {
-            0.0
-        }
-
-        // ИСПРАВЛЕНО: Форматирование среднего чека без лишних нулей после запятой
+        val averageCheck = if (appointments > 0) revenue.toDouble() / appointments else 0.0
         val averageText = "Середній чек: ${currencyFormat.format(averageCheck)} грн"
-
-        // Обновляем информацию о периоде, добавляя средний чек
         val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
         val groupingText = when (currentGrouping) {
             GroupingInterval.DAY -> "дням"
@@ -450,33 +428,25 @@ class StatisticsFragment : Fragment() {
             GroupingInterval.YEAR -> "рокам"
             GroupingInterval.ALL_TIME -> "увесь час"
         }
-
         val periodText = if (currentGrouping == GroupingInterval.ALL_TIME) {
             "Період: Увесь час • $averageText"
         } else {
             "Період: ${dateFormat.format(startDate.time)} - ${dateFormat.format(endDate.time)} (групування по $groupingText) • $averageText"
         }
-
         binding.textViewPeriodInfo.text = periodText
     }
 
-    @Suppress("SetterInsteadOfProperty") // Подавляем предупреждения для MPAndroidChart сеттеров
     private fun updateBarChartAppointments(data: Map<String, Int>) {
-        val themeTextColor = getThemeTextColor() // ПОЛУЧАЕМ ЦВЕТ ТЕКСТА ИЗ ТЕМЫ
-
-        // Управляем видимостью графика и сообщения "нет данных"
+        val themeTextColor = getThemeTextColor()
         if (data.isEmpty()) {
             barChartAppointments.visibility = View.GONE
             binding.textViewNoBarChartData.visibility = View.VISIBLE
         } else {
             barChartAppointments.visibility = View.VISIBLE
             binding.textViewNoBarChartData.visibility = View.GONE
-
             val entries = ArrayList<BarEntry>()
             val labels = ArrayList<String>()
             var i = 0f
-
-            // Форматируем подписи в зависимости от группировки
             val sortedData = data.entries.sortedBy {
                 when (currentGrouping) {
                     GroupingInterval.ALL_TIME -> 0L
@@ -485,48 +455,33 @@ class StatisticsFragment : Fragment() {
                     else -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(it.key)?.time ?: 0L
                 }
             }
-
             sortedData.forEach { (date, count) ->
                 entries.add(BarEntry(i, count.toFloat()))
-
-                // Форматируем подписи в зависимости от группировки
                 val formattedLabel = when (currentGrouping) {
-                    GroupingInterval.DAY -> {
-                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(date)?.let {
-                            SimpleDateFormat("dd.MM", Locale.getDefault()).format(it)
-                        } ?: date
-                    }
-                    GroupingInterval.WEEK -> {
-                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(date)?.let {
-                            SimpleDateFormat("dd.MM", Locale.getDefault()).format(it)
-                        } ?: date
-                    }
-                    GroupingInterval.MONTH -> {
-                        SimpleDateFormat("yyyy-MM", Locale.getDefault()).parse(date)?.let {
-                            SimpleDateFormat("MM.yyyy", Locale.getDefault()).format(it)
-                        } ?: date
-                    }
+                    GroupingInterval.DAY -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(date)?.let {
+                        SimpleDateFormat("dd.MM", Locale.getDefault()).format(it)
+                    } ?: date
+                    GroupingInterval.WEEK -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(date)?.let {
+                        SimpleDateFormat("dd.MM", Locale.getDefault()).format(it)
+                    } ?: date
+                    GroupingInterval.MONTH -> SimpleDateFormat("yyyy-MM", Locale.getDefault()).parse(date)?.let {
+                        SimpleDateFormat("MM.yyyy", Locale.getDefault()).format(it)
+                    } ?: date
                     GroupingInterval.YEAR -> date
                     GroupingInterval.ALL_TIME -> "Всього"
                 }
-
                 labels.add(formattedLabel)
                 i++
             }
-
+            barChartLabels = labels
             val dataSet = BarDataSet(entries, "Кількість записів")
             dataSet.color = ContextCompat.getColor(requireContext(), R.color.blue_500)
-            dataSet.valueTextColor = themeTextColor // ИСПОЛЬЗУЕМ ЦВЕТ ИЗ ТЕМЫ
+            dataSet.valueTextColor = themeTextColor
             dataSet.valueTextSize = 10f
-
             val barData = BarData(dataSet)
             barData.barWidth = 0.9f
             barChartAppointments.data = barData
-
-            // Устанавливаем форматтер для оси X
             barChartAppointments.xAxis.valueFormatter = IndexAxisValueFormatter(labels)
-
-            // Ограничиваем количество подписей для лучшей читаемости
             val maxLabels = when {
                 labels.size <= 5 -> labels.size
                 labels.size <= 10 -> 5
@@ -535,29 +490,30 @@ class StatisticsFragment : Fragment() {
             }
             barChartAppointments.xAxis.labelCount = maxLabels
             barChartAppointments.xAxis.setCenterAxisLabels(false)
-
             barChartAppointments.invalidate()
             barChartAppointments.animateY(1000)
+            barChartAppointments.setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
+                override fun onValueSelected(e: Entry?, h: Highlight?) {
+                    val index = e?.x?.toInt() ?: return
+                    val label = barChartLabels.getOrNull(index) ?: return
+                    openDrillDownForPeriod(label)
+                }
+                override fun onNothingSelected() {}
+            })
         }
     }
 
-    @Suppress("SetterInsteadOfProperty") // Подавляем предупреждения для MPAndroidChart сеттеров
     private fun updatePieChartRevenueByCategory(data: Map<String, Int>) {
-        val themeTextColor = getThemeTextColor() // ПОЛУЧАЕМ ЦВЕТ ТЕКСТА ИЗ ТЕМЫ
-
-        // Управляем видимостью графика и сообщения "нет данных"
+        val themeTextColor = getThemeTextColor()
         if (data.isEmpty()) {
             pieChartRevenueByCategory.visibility = View.GONE
             binding.textViewNoPieChartData.visibility = View.VISIBLE
         } else {
             pieChartRevenueByCategory.visibility = View.VISIBLE
             binding.textViewNoPieChartData.visibility = View.GONE
-
             val entries = ArrayList<PieEntry>()
             val colors = ArrayList<Int>()
-
-            // Генерация цветов для PieChart
-            val presetColors = mutableListOf(
+            val presetColors = listOf(
                 ContextCompat.getColor(requireContext(), R.color.blue_500),
                 ContextCompat.getColor(requireContext(), R.color.teal_700),
                 ContextCompat.getColor(requireContext(), R.color.purple_500),
@@ -566,34 +522,23 @@ class StatisticsFragment : Fragment() {
                 ContextCompat.getColor(requireContext(), R.color.teal_200),
                 ContextCompat.getColor(requireContext(), R.color.purple_700)
             )
-            // Если количество категорий больше, чем presetColors, MPAndroidChart будет циклически использовать их.
-
             data.forEach { (category, revenue) ->
                 entries.add(PieEntry(revenue.toFloat(), category))
             }
-
+            colors.addAll(presetColors)
             val dataSet = PieDataSet(entries, "")
             dataSet.sliceSpace = 2f
             dataSet.selectionShift = 5f
-            // Автоматическая установка цветов, если их меньше, чем entries, будут циклически повторяться
-            for (color in presetColors) {
-                colors.add(color)
-            }
             dataSet.colors = colors
-            dataSet.valueTextColor = themeTextColor // ИСПОЛЬЗУЕМ ЦВЕТ ИЗ ТЕМЫ
+            dataSet.valueTextColor = themeTextColor
             dataSet.valueTextSize = 12f
-
-            // Форматтер для отображения процентов
             dataSet.valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     return "%.1f%%".format(value)
                 }
             }
-
             val pieData = PieData(dataSet)
             pieChartRevenueByCategory.data = pieData
-
-            // Обновляем легенду с правильными записями (категориями)
             val legendEntries = entries.mapIndexed { index, entry ->
                 LegendEntry().apply {
                     label = entry.label
@@ -602,20 +547,85 @@ class StatisticsFragment : Fragment() {
                 }
             }
             pieChartRevenueByCategory.legend.setCustom(legendEntries)
-
             pieChartRevenueByCategory.invalidate()
             pieChartRevenueByCategory.animateY(1400)
         }
     }
 
+    private fun openDrillDownForPeriod(label: String) {
+        lastDrillDown = Pair(currentPeriodType, currentGrouping)
+        lastDrillDownDates = Pair(startDate.clone() as Calendar, endDate.clone() as Calendar)
+        try {
+            when (currentGrouping) {
+                GroupingInterval.MONTH -> {
+                    val sdf = SimpleDateFormat("MM.yyyy", Locale.getDefault())
+                    val parsed = sdf.parse(label)
+                    val cal = Calendar.getInstance().apply { time = parsed!! }
+                    cal.set(Calendar.DAY_OF_MONTH, 1)
+                    startDate = cal.clone() as Calendar
+                    endDate = (cal.clone() as Calendar).apply {
+                        set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+                        setToEndOfDay()
+                    }
+                    currentGrouping = GroupingInterval.DAY
+                    updateDateDisplay()
+                    generateStatistics()
+                    showBackButtonForDrillDown()
+                }
+                else -> {}
+            }
+        } catch (e: Exception) {}
+    }
+
+    private fun showBackButtonForDrillDown() {
+        binding.buttonBackDrilldown?.visibility = View.VISIBLE
+        binding.buttonBackDrilldown?.setOnClickListener { restoreDrillDown() }
+    }
+
+    private fun restoreDrillDown() {
+        lastDrillDown?.let { (period, grouping) ->
+            currentPeriodType = period
+            currentGrouping = grouping
+        }
+        lastDrillDownDates?.let { (start, end) ->
+            startDate = start
+            endDate = end
+        }
+        updateDateDisplay()
+        generateStatistics()
+        binding.buttonBackDrilldown?.visibility = View.GONE
+    }
 
     private fun generateStatistics() {
-        // Передаем текущую выбранную группировку в ViewModel
-        viewModel.generateStatistics(startDate.time, endDate.time, currentGrouping)
+        if (currentGrouping == GroupingInterval.ALL_TIME) {
+            viewModel.generateStatistics(Date(0), Date(), currentGrouping)
+        } else {
+            viewModel.generateStatistics(startDate.time, endDate.time, currentGrouping)
+        }
+    }
+
+    private fun Calendar.setToStartOfDay(): Calendar {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+        return this
+    }
+
+    private fun Calendar.setToEndOfDay(): Calendar {
+        set(Calendar.HOUR_OF_DAY, 23)
+        set(Calendar.MINUTE, 59)
+        set(Calendar.SECOND, 59)
+        set(Calendar.MILLISECOND, 999)
+        return this
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
+}
+
+enum class PeriodType {
+    WEEK, MONTH, THREE_MONTHS, SIX_MONTHS, YEAR, ALL_TIME, CUSTOM
 }

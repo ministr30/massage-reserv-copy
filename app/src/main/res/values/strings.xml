@@ -68,9 +68,7 @@
     <string name="end_date_button">Кінцева дата</string>
     <string name="chip_day">День</string>
     <string name="chip_week">Тиждень</string>
-    <string name="chip_month">Місяць</string>
-    <string name="chip_year">Рік</string>
-    <string name="chip_all_time">За весь час</string>
+
     <string name="total_appointments_placeholder">Всього записів: %s</string> <!-- ИЗМЕНЕНО: %s -->
     <string name="total_revenue_placeholder">Загальна виручка: %s грн</string> <!-- ИЗМЕНЕНО: %s -->
     <string name="most_popular_service_placeholder">Найпопулярніша послуга: %s</string>
@@ -184,5 +182,20 @@
 
     <string name="chart_title_appointments_by_period">Кількість записів по періодах</string>
     <string name="chart_title_revenue_by_category">Виручка по категоріях послуг</string>
+
+    <!-- Быстрые фильтры для статистики -->
+    <string name="chip_month">Місяць</string>
+    <string name="chip_quarter">Квартал</string>
+    <string name="chip_3_months">3 місяці</string>
+    <string name="chip_year">Рік</string>
+    <string name="chip_all_time">Весь час</string>
+
+    <string name="drilldown_back">Назад</string>
+    <string name="currency">грн</string>
+    <string name="minutes">%d хвилин</string>
+
+    <string name="chip_6_months">6 місяців</string>
+
+
 
 </resources>
