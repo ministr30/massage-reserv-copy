@@ -2,12 +2,13 @@ package com.massagepro.ui.appointments
 
 import android.app.Application
 import android.content.Context
+import androidx.core.content.edit
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
-import com.massagepro.R
 import com.massagepro.data.model.Appointment
+import com.massagepro.data.model.AppointmentStatus
 import com.massagepro.data.model.AppointmentWithClientAndService
 import com.massagepro.data.model.Client
 import com.massagepro.data.model.Service
@@ -21,13 +22,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Calendar
-import com.massagepro.data.model.AppointmentStatus
+import java.util.concurrent.TimeUnit
 
 private const val PREFS_NAME = "com.massagepro.slot_prefs"
 private const val KEY_HIDE_FREE_SLOTS = "hide_free_slots"
 
 class AppointmentsViewModel(
-    private val application: Application,
+    application: Application, // Убрали private val
     private val appointmentRepository: AppointmentRepository,
     private val clientRepository: ClientRepository,
     private val serviceRepository: ServiceRepository
@@ -46,16 +47,15 @@ class AppointmentsViewModel(
         checkAndAutoUpdateAppointmentStatuses()
     }
 
+    // Используем KTX-расширение для SharedPreferences
     fun setHideFreeSlots(hide: Boolean) {
         _hideFreeSlots.value = hide
-        sharedPreferences.edit().putBoolean(KEY_HIDE_FREE_SLOTS, hide).apply()
+        sharedPreferences.edit {
+            putBoolean(KEY_HIDE_FREE_SLOTS, hide)
+        }
     }
 
-    // ИСПРАВЛЕНО: Теперь использует метод, который НЕ фильтрует по статусу,
-    // чтобы отображать ВСЕ записи в общем списке
-    val allAppointments: LiveData<List<AppointmentWithClientAndService>> =
-        appointmentRepository.getAppointmentsWithClientAndServiceIncludingAllStatuses().asLiveData()
-
+    // Свойство allClients и allServices остаются, так как они используются
     val allClients: LiveData<List<Client>> = clientRepository.getAllClients().asLiveData()
     val allServices: LiveData<List<Service>> = serviceRepository.getAllServices().asLiveData()
 
@@ -87,13 +87,7 @@ class AppointmentsViewModel(
         return serviceRepository.getServiceById(serviceId)
     }
 
-    // ИСПРАВЛЕНО: Теперь использует метод, который НЕ фильтрует по статусу,
-    // для отображения расписания на день (чтобы видеть все записи на день)
-    fun getAppointmentsForDayLiveData(startOfDayMillis: Long, endOfDayMillis: Long): LiveData<List<AppointmentWithClientAndService>> {
-        return appointmentRepository.getAppointmentsForDayIncludingAllStatuses(startOfDayMillis, endOfDayMillis).asLiveData()
-    }
-
-    // ИСПРАВЛЕНО: Теперь использует метод, который НЕ фильтрует по статусу
+    // Эта функция используется в HomeFragment
     fun getAppointmentsForDayFlow(startOfDayMillis: Long, endOfDayMillis: Long): Flow<List<AppointmentWithClientAndService>> {
         return appointmentRepository.getAppointmentsForDayIncludingAllStatuses(startOfDayMillis, endOfDayMillis)
     }
@@ -110,11 +104,9 @@ class AppointmentsViewModel(
 
     private fun checkAndAutoUpdateAppointmentStatuses() {
         viewModelScope.launch {
-            // ИСПОЛЬЗУЕМ .statusValue для получения правильных строк статусов
             val scheduledStatus = AppointmentStatus.PLANNED.statusValue
             val completedStatus = AppointmentStatus.COMPLETED.statusValue
 
-            // Здесь getAppointmentsByStatus(scheduledStatus) будет искать записи со статусом "Заплановано"
             val scheduledAppointments = appointmentRepository.getAppointmentsByStatus(scheduledStatus)
 
             val currentTimeMillis = System.currentTimeMillis()
@@ -205,5 +197,50 @@ class AppointmentsViewModel(
             )
         }
         return allSlots
+    }
+
+    suspend fun findNextAvailableSlot(serviceDuration: Int, searchFrom: Calendar): Calendar? {
+        val allAppointments = appointmentRepository.getAllAppointmentsList().sortedBy { it.dateTime }
+        val searchStartTime = searchFrom.clone() as Calendar
+
+        if (searchStartTime.get(Calendar.HOUR_OF_DAY) < 9) {
+            searchStartTime.set(Calendar.HOUR_OF_DAY, 9)
+            searchStartTime.set(Calendar.MINUTE, 0)
+        }
+
+        for (i in 0..30) {
+            val dayToSearch = (searchStartTime.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, i) }
+            val workDayStart = (dayToSearch.clone() as Calendar).apply { set(Calendar.HOUR_OF_DAY, 9); set(Calendar.MINUTE, 0) }
+            val workDayEnd = (dayToSearch.clone() as Calendar).apply { set(Calendar.HOUR_OF_DAY, 21); set(Calendar.MINUTE, 0) }
+
+            val appointmentsOnThisDay = allAppointments.filter {
+                val appCal = Calendar.getInstance().apply { timeInMillis = it.dateTime }
+                appCal.get(Calendar.YEAR) == dayToSearch.get(Calendar.YEAR) &&
+                        appCal.get(Calendar.DAY_OF_YEAR) == dayToSearch.get(Calendar.DAY_OF_YEAR)
+            }
+
+            var lastAppointmentEndTime = workDayStart.timeInMillis
+
+            for (appointment in appointmentsOnThisDay) {
+                if (appointment.dateTime - lastAppointmentEndTime >= TimeUnit.MINUTES.toMillis(serviceDuration.toLong())) {
+                    val potentialSlot = Calendar.getInstance().apply { timeInMillis = lastAppointmentEndTime }
+                    if (!potentialSlot.before(searchFrom)) return potentialSlot
+                }
+                lastAppointmentEndTime = appointment.dateTime + TimeUnit.MINUTES.toMillis(appointment.serviceDuration.toLong())
+            }
+
+            if (workDayEnd.timeInMillis - lastAppointmentEndTime >= TimeUnit.MINUTES.toMillis(serviceDuration.toLong())) {
+                val potentialSlot = Calendar.getInstance().apply { timeInMillis = lastAppointmentEndTime }
+                if (!potentialSlot.before(searchFrom)) return potentialSlot
+            }
+        }
+        return null
+    }
+
+    suspend fun getPrecedingAppointment(startTime: Long): Appointment? {
+        val allAppointments = appointmentRepository.getAllAppointmentsList()
+        return allAppointments
+            .filter { (it.dateTime + TimeUnit.MINUTES.toMillis(it.serviceDuration.toLong())) <= startTime }
+            .maxByOrNull { it.dateTime }
     }
 }

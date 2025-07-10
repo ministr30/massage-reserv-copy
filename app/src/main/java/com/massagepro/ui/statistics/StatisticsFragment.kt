@@ -15,25 +15,22 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
+import com.github.mikephil.charting.charts.BarChart
+import com.github.mikephil.charting.charts.PieChart
+import com.github.mikephil.charting.components.Legend
+import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.data.*
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.github.mikephil.charting.formatter.ValueFormatter
+import com.github.mikephil.charting.highlight.Highlight
+import com.github.mikephil.charting.listener.OnChartValueSelectedListener
+import com.google.android.material.chip.ChipGroup
 import com.massagepro.App
 import com.massagepro.R
-import com.massagepro.databinding.FragmentStatisticsBinding
 import com.massagepro.data.repository.AppointmentRepository
 import com.massagepro.data.repository.ClientRepository
 import com.massagepro.data.repository.ServiceRepository
-import com.massagepro.ui.statistics.StatisticsViewModelFactory
-import com.github.mikephil.charting.charts.BarChart
-import com.github.mikephil.charting.charts.PieChart
-import com.github.mikephil.charting.data.*
-import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
-import com.github.mikephil.charting.components.XAxis
-import com.github.mikephil.charting.formatter.ValueFormatter
-import com.github.mikephil.charting.components.Legend
-import com.github.mikephil.charting.components.LegendEntry
-import com.github.mikephil.charting.listener.OnChartValueSelectedListener
-import com.github.mikephil.charting.highlight.Highlight
-import com.github.mikephil.charting.data.Entry
-import com.google.android.material.chip.ChipGroup
+import com.massagepro.databinding.FragmentStatisticsBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -52,8 +49,10 @@ class StatisticsFragment : Fragment() {
         val database = (requireActivity().application as App).database
         val clientRepository = ClientRepository(database.clientDao())
         val serviceRepository = ServiceRepository(database.serviceDao())
+        val appointmentRepository = AppointmentRepository(database.appointmentDao())
+
         StatisticsViewModelFactory(
-            AppointmentRepository(database.appointmentDao(), serviceRepository, clientRepository),
+            appointmentRepository,
             clientRepository,
             serviceRepository
         )
@@ -120,8 +119,10 @@ class StatisticsFragment : Fragment() {
         }
     }
 
+    @Suppress("DEPRECATION") // Эта аннотация подавляет предупреждение об устаревшем методе
     private fun setupChipGroup() {
         chipGroupPeriod.setOnCheckedChangeListener { _, checkedId ->
+
             when (checkedId) {
                 R.id.chip_week -> setPeriodAndGrouping(PeriodType.WEEK)
                 R.id.chip_month -> setPeriodAndGrouping(PeriodType.MONTH)
@@ -136,7 +137,6 @@ class StatisticsFragment : Fragment() {
 
     private fun setPeriodAndGrouping(periodType: PeriodType) {
         currentPeriodType = periodType
-        val now = Calendar.getInstance()
         when (periodType) {
             PeriodType.WEEK -> {
                 startDate = Calendar.getInstance().apply {
@@ -205,7 +205,7 @@ class StatisticsFragment : Fragment() {
                 currentGrouping = GroupingInterval.YEAR
             }
             PeriodType.CUSTOM -> {
-                // Для кастомного периода startDate/endDate выставляются вручную
+                // For custom period, startDate/endDate are set manually
             }
         }
         updateDateDisplay()
@@ -213,7 +213,7 @@ class StatisticsFragment : Fragment() {
     }
 
     private fun showCustomDateRangeDialog() {
-        val now = Calendar.getInstance()
+
         val start = startDate.clone() as Calendar
         val end = endDate.clone() as Calendar
 
@@ -265,7 +265,7 @@ class StatisticsFragment : Fragment() {
             }
         } catch (e: Exception) {
             withContext(Dispatchers.Main) {
-                val errorMessage = e.message ?: "Невідома ошибка"
+                val errorMessage = e.message ?: "Unknown error"
                 Toast.makeText(requireContext(), getString(R.string.backup_error, errorMessage), Toast.LENGTH_LONG).show()
             }
         }
@@ -511,7 +511,16 @@ class StatisticsFragment : Fragment() {
         } else {
             pieChartRevenueByCategory.visibility = View.VISIBLE
             binding.textViewNoPieChartData.visibility = View.GONE
+
             val entries = ArrayList<PieEntry>()
+            for ((category, revenue) in data) {
+                entries.add(PieEntry(revenue.toFloat(), category))
+            }
+
+            val dataSet = PieDataSet(entries, "")
+            dataSet.sliceSpace = 2f
+            dataSet.selectionShift = 5f
+
             val colors = ArrayList<Int>()
             val presetColors = listOf(
                 ContextCompat.getColor(requireContext(), R.color.blue_500),
@@ -522,14 +531,9 @@ class StatisticsFragment : Fragment() {
                 ContextCompat.getColor(requireContext(), R.color.teal_200),
                 ContextCompat.getColor(requireContext(), R.color.purple_700)
             )
-            data.forEach { (category, revenue) ->
-                entries.add(PieEntry(revenue.toFloat(), category))
-            }
             colors.addAll(presetColors)
-            val dataSet = PieDataSet(entries, "")
-            dataSet.sliceSpace = 2f
-            dataSet.selectionShift = 5f
             dataSet.colors = colors
+
             dataSet.valueTextColor = themeTextColor
             dataSet.valueTextSize = 12f
             dataSet.valueFormatter = object : ValueFormatter() {
@@ -537,21 +541,17 @@ class StatisticsFragment : Fragment() {
                     return "%.1f%%".format(value)
                 }
             }
+
             val pieData = PieData(dataSet)
             pieChartRevenueByCategory.data = pieData
-            val legendEntries = entries.mapIndexed { index, entry ->
-                LegendEntry().apply {
-                    label = entry.label
-                    formColor = dataSet.colors[index % dataSet.colors.size]
-                    form = Legend.LegendForm.SQUARE
-                }
-            }
-            pieChartRevenueByCategory.legend.setCustom(legendEntries)
+            pieChartRevenueByCategory.legend.isEnabled = true // Включаем автоматическую легенду
+
             pieChartRevenueByCategory.invalidate()
             pieChartRevenueByCategory.animateY(1400)
         }
     }
 
+    // НОВЫЙ, ПРАВИЛЬНЫЙ КОД
     private fun openDrillDownForPeriod(label: String) {
         lastDrillDown = Pair(currentPeriodType, currentGrouping)
         lastDrillDownDates = Pair(startDate.clone() as Calendar, endDate.clone() as Calendar)
@@ -572,14 +572,21 @@ class StatisticsFragment : Fragment() {
                     generateStatistics()
                     showBackButtonForDrillDown()
                 }
-                else -> {}
+                else -> {
+                    // Ничего не делаем для других интервалов
+                }
             }
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            // Теперь мы не игнорируем ошибку, а выводим её в лог
+            e.printStackTrace()
+            // Можно также показать сообщение пользователю, если это необходимо
+            // Toast.makeText(requireContext(), "Помилка обробки дати", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun showBackButtonForDrillDown() {
-        binding.buttonBackDrilldown?.visibility = View.VISIBLE
-        binding.buttonBackDrilldown?.setOnClickListener { restoreDrillDown() }
+        binding.buttonBackDrilldown.visibility = View.VISIBLE
+        binding.buttonBackDrilldown.setOnClickListener { restoreDrillDown() }
     }
 
     private fun restoreDrillDown() {
@@ -593,7 +600,7 @@ class StatisticsFragment : Fragment() {
         }
         updateDateDisplay()
         generateStatistics()
-        binding.buttonBackDrilldown?.visibility = View.GONE
+        binding.buttonBackDrilldown.visibility = View.GONE
     }
 
     private fun generateStatistics() {

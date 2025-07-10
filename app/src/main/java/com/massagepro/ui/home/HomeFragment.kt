@@ -18,17 +18,20 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.massagepro.App
 import com.massagepro.R
 import com.massagepro.data.model.Appointment
+import com.massagepro.data.model.AppointmentStatus
+import com.massagepro.data.repository.AppointmentRepository
+import com.massagepro.data.repository.ClientRepository
+import com.massagepro.data.repository.ServiceRepository
 import com.massagepro.databinding.FragmentHomeBinding
 import com.massagepro.ui.appointments.AppointmentsViewModel
 import com.massagepro.ui.appointments.AppointmentsViewModelFactory
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
-import com.massagepro.data.model.AppointmentStatus
-import java.text.DecimalFormat // ИМПОРТИРУЕМ DecimalFormat
 
 class HomeFragment : Fragment() {
 
@@ -37,19 +40,22 @@ class HomeFragment : Fragment() {
     private val appointmentsViewModel: AppointmentsViewModel by viewModels {
         val application = requireActivity().application as App
         val database = application.database
-        val clientRepository = com.massagepro.data.repository.ClientRepository(database.clientDao())
-        val serviceRepository = com.massagepro.data.repository.ServiceRepository(database.serviceDao())
+        val clientRepository = ClientRepository(database.clientDao())
+        val serviceRepository = ServiceRepository(database.serviceDao())
+        // 👇 --- ИСПРАВЛЕНИЕ ЗДЕСЬ --- 👇
+        val appointmentRepository = AppointmentRepository(database.appointmentDao())
+
         AppointmentsViewModelFactory(
             application,
-            com.massagepro.data.repository.AppointmentRepository(database.appointmentDao(), serviceRepository, clientRepository),
+            appointmentRepository,
             clientRepository,
             serviceRepository
         )
+        // 👆 --- КОНЕЦ ИСПРАВЛЕНИЯ --- 👆
     }
     private lateinit var timeSlotAdapter: TimeSlotAdapter
     private var selectedDate: Calendar = Calendar.getInstance()
 
-    // Форматтер для денежных значений (для выручки)
     private val currencyFormat = DecimalFormat("#,##0")
 
     override fun onCreateView(
@@ -180,14 +186,12 @@ class HomeFragment : Fragment() {
                             it.appointment.status != AppointmentStatus.CANCELED.statusValue &&
                                     it.appointment.status != AppointmentStatus.MISSED.statusValue
                         }
-                        // ОСТАВЛЯЕМ КАК ЕСТЬ (Int в %d)
                         binding.textViewAppointmentsCount.text =
                             getString(R.string.appointments_count_prefix, activeAppointmentsCount)
 
                         val completedRevenue = allAppointmentsForToday.filter {
                             it.appointment.status == AppointmentStatus.COMPLETED.statusValue
                         }.sumOf { it.appointment.servicePrice }
-                        // ИСПРАВЛЕНО: Форматируем число в строку для %s в strings.xml
                         binding.textViewTotalRevenue.text =
                             getString(R.string.total_revenue_prefix, currencyFormat.format(completedRevenue))
                     }
@@ -224,7 +228,7 @@ class HomeFragment : Fragment() {
             .setTitle(getString(R.string.action_dialog_title))
             .setItems(statusOptions) { dialog, which ->
                 when (which) {
-                    0 -> { // Редагувати
+                    0 -> {
                         val action =
                             HomeFragmentDirections.actionNavigationHomeToAddEditAppointmentFragment(
                                 appointmentId = appointment.id,
@@ -233,7 +237,7 @@ class HomeFragment : Fragment() {
                         findNavController().navigate(action)
                     }
 
-                    1 -> { // Перенести
+                    1 -> {
                         val action =
                             HomeFragmentDirections.actionNavigationHomeToAddEditAppointmentFragment(
                                 appointmentId = appointment.id,
@@ -242,7 +246,7 @@ class HomeFragment : Fragment() {
                         findNavController().navigate(action)
                     }
 
-                    2 -> { // Позначити як завершену
+                    2 -> {
                         lifecycleScope.launch {
                             appointmentsViewModel.updateAppointmentStatus(
                                 appointment.id,
@@ -256,7 +260,7 @@ class HomeFragment : Fragment() {
                         }
                     }
 
-                    3 -> { // Позначити як скасовану
+                    3 -> {
                         lifecycleScope.launch {
                             appointmentsViewModel.updateAppointmentStatus(
                                 appointment.id,
@@ -270,7 +274,7 @@ class HomeFragment : Fragment() {
                         }
                     }
 
-                    4 -> { // Позначити як неявку
+                    4 -> {
                         lifecycleScope.launch {
                             appointmentsViewModel.updateAppointmentStatus(
                                 appointment.id,
@@ -284,7 +288,7 @@ class HomeFragment : Fragment() {
                         }
                     }
 
-                    5 -> { // Видалити
+                    5 -> {
                         showDeleteConfirmationDialog(appointment)
                     }
                 }

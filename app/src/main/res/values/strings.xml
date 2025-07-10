@@ -12,8 +12,7 @@
     <string name="service_details_format">%1$d грн, %2$d хв</string>
     <string name="appointment_status_scheduled">Заплановано</string>
     <string name="appointment_status_completed">Завершено</string>
-    <string name="service_price_prefix">Вартість: %s грн</string> <!-- ИЗМЕНЕНО: %s -->
-    <string name="appointment_status_cancelled">Скасовано</string>
+    <string name="service_price_prefix">Вартість: %s грн</string> <string name="appointment_status_cancelled">Скасовано</string>
     <string name="appointment_status_no_show">Неявка</string>
 
     <string-array name="appointment_statuses">
@@ -55,9 +54,7 @@
     <string name="create_appointment_button_text">Створити запис</string>
     <string name="add_client_description">Додати нового клієнта</string>
     <string name="service_hint">Оберіть послугу</string>
-    <string name="total_appointments_prefix">Всього записів: %s</string> <!-- ИЗМЕНЕНО: %s -->
-    <string name="total_revenue_prefix_stats">Загальна виручка: %s грн</string> <!-- ИЗМЕНЕНО: %s -->
-    <string name="most_popular_service_prefix">Найпопулярніша послуга: %1$s</string>
+    <string name="total_appointments_prefix">Всього записів: %d</string> <string name="total_revenue_prefix_stats">Загальна виручка: %s грн</string> <string name="most_popular_service_prefix">Найпопулярніша послуга: %1$s</string>
     <string name="most_active_client_prefix">Найактивніший клієнт: %1$s</string>
     <string name="delete_client_confirmation_title">Видалити клієнта?</string>
     <string name="delete_client_confirmation_message">Ви впевнені, що хочете видалити клієнта %1$s?</string>
@@ -69,9 +66,7 @@
     <string name="chip_day">День</string>
     <string name="chip_week">Тиждень</string>
 
-    <string name="total_appointments_placeholder">Всього записів: %s</string> <!-- ИЗМЕНЕНО: %s -->
-    <string name="total_revenue_placeholder">Загальна виручка: %s грн</string> <!-- ИЗМЕНЕНО: %s -->
-    <string name="most_popular_service_placeholder">Найпопулярніша послуга: %s</string>
+    <string name="total_appointments_placeholder">Всього записів: %s</string> <string name="total_revenue_placeholder">Загальна виручка: %s грн</string> <string name="most_popular_service_placeholder">Найпопулярніша послуга: %s</string>
     <string name="most_active_client_placeholder">Найактивніший клієнт: %s</string>
     <string name="search_client_hint">Пошук за ім\'ям або телефоном</string>
     <string name="search_service_hint">Пошук за назвою послуги</string>
@@ -150,8 +145,7 @@
     <string name="total_cost_prefix">Підсумкова вартість:</string>
     <string name="total_cost_sunday_surcharge_suffix"> (+100 грн за неділю)</string>
     <string name="appointments_count_prefix">Записів на сьогодні: %1$d</string>
-    <string name="total_revenue_prefix">Загальна виручка: %s грн</string> <!-- ИЗМЕНЕНО: %s -->
-    <string name="occupied_slot_info_prefix">Зайнято:</string>
+    <string name="total_revenue_prefix">Загальна виручка: %s грн</string> <string name="occupied_slot_info_prefix">Зайнято:</string>
     <string name="unknown_client_service">Невідомо</string>
     <string name="selected_date_time_format">Обрано: %1$s, %2$s</string>
     <string name="total_cost_sunday_format">Загальна вартість (неділя): %1$d</string>
@@ -168,13 +162,11 @@
     <string name="restore_confirmation_message">Увага! Поточні дані будуть перезаписані даними з резервної копії. Після відновлення додаток буде перезапущено. Продовжити?</string>
     <string name="restore_action_confirm">Відновити</string>
 
-    <!-- НОВЫЕ СТРОКИ ДЛЯ СООБЩЕНИЙ "НЕТ ДАННЫХ" -->
     <string name="no_chart_data_appointments">Немає даних про записи за обраний період.</string>
     <string name="no_chart_data_revenue">Немає даних про виручку за обраний період.</string>
     <string name="no_appointments_message">Ще немає записів на цей день.</string>
     <string name="hide_free_slots">Приховати вільні слоти</string>
 
-    <!-- ДОПЛАТА ЗА ВЫХОДНОЙ" -->
     <string name="weekend_surcharge_title">Доплата за вихідний день</string>
     <string name="weekend_surcharge_message">Додати 100 грн до вартості у вихідний день?</string>
     <string name="dialog_yes">Так</string>
@@ -183,7 +175,6 @@
     <string name="chart_title_appointments_by_period">Кількість записів по періодах</string>
     <string name="chart_title_revenue_by_category">Виручка по категоріях послуг</string>
 
-    <!-- Быстрые фильтры для статистики -->
     <string name="chip_month">Місяць</string>
     <string name="chip_quarter">Квартал</string>
     <string name="chip_3_months">3 місяці</string>
@@ -196,6 +187,11 @@
 
     <string name="chip_6_months">6 місяців</string>
 
+    <string name="slot_busy_title">Слот зайнято</string>
+    <string name="slot_busy_message">Цей час вже зайнято. Запропонувати найближчий вільний слот: %1$s?</string>
+    <string name="no_free_slots_found">Вільних слотів не знайдено.</string>
 
-
+    <string name="preparation_time_title">Підготовка до клієнта</string>
+    <string name="preparation_time_message">Додати 15 хвилин на підготовку до наступного клієнта?</string>
+    <string name="time_range_format">%1$s - %2$s</string>
 </resources>

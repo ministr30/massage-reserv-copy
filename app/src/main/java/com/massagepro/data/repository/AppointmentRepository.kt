@@ -4,20 +4,14 @@ import com.massagepro.data.dao.AppointmentDao
 import com.massagepro.data.model.Appointment
 import com.massagepro.data.model.AppointmentWithClientAndService
 import kotlinx.coroutines.flow.Flow
-import com.massagepro.data.model.AppointmentStatus
 
-class AppointmentRepository(
-    private val appointmentDao: AppointmentDao,
-    private val serviceRepository: ServiceRepository,
-    private val clientRepository: ClientRepository
-) {
+class AppointmentRepository(private val appointmentDao: AppointmentDao) {
+
     fun getAppointmentsWithClientAndService(status: String): Flow<List<AppointmentWithClientAndService>> {
         return appointmentDao.getAppointmentsWithClientAndService(status)
     }
 
-    fun getAppointmentsWithClientAndServiceIncludingAllStatuses(): Flow<List<AppointmentWithClientAndService>> {
-        return appointmentDao.getAppointmentsWithClientAndServiceIncludingAllStatuses()
-    }
+    // 👇 ФУНКЦИЯ getAppointmentsWithClientAndServiceIncludingAllStatuses() УДАЛЕНА ОТСЮДА 👇
 
     fun getAllAppointments(status: String): Flow<List<Appointment>> {
         return appointmentDao.getAllAppointments(status)
@@ -53,5 +47,9 @@ class AppointmentRepository(
 
     suspend fun getAppointmentsByStatus(status: String): List<Appointment> {
         return appointmentDao.getAppointmentsByStatus(status)
+    }
+
+    suspend fun getAllAppointmentsList(): List<Appointment> {
+        return appointmentDao.getAllAppointmentsList()
     }
 }
