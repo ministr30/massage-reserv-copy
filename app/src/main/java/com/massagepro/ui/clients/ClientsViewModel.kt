@@ -1,58 +1,92 @@
 package com.massagepro.ui.clients
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.massagepro.data.repository.ClientRepository
 import com.massagepro.data.model.Client
+import com.massagepro.data.repository.ClientRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-// Добавлены аннотации @OptIn для подавления предупреждений
-@OptIn(kotlinx.coroutines.FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-class ClientsViewModel(private val clientRepository: ClientRepository) : ViewModel() {
+sealed class ClientUiState {
+    object Loading : ClientUiState()
+    data class Success(val clients: List<Client>) : ClientUiState()
+    data class Error(val message: String) : ClientUiState()
+}
+
+class ClientsViewModel(private val repository: ClientRepository) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+    private val _refreshTrigger = MutableStateFlow(0)
 
-    val allClients: StateFlow<List<Client>> = searchQuery
-        .debounce(300) // необязательно, но удобно
-        .flatMapLatest { query ->
-            if (query.isEmpty()) {
-                clientRepository.getAllClients()
-            } else {
-                clientRepository.searchClients("%$query%")
+    val uiState: StateFlow<ClientUiState> =
+        combine(_searchQuery, _refreshTrigger) { query, _ -> query }
+            .flatMapLatest { query ->
+                val flow = if (query.isBlank()) repository.getAllClients()
+                else repository.searchClients(query)
+
+                flow
+                    .map<List<Client>, ClientUiState> { ClientUiState.Success(it) }
+                    .catch { e ->
+                        Log.e("ClientsViewModel", "Flow error: ${e.message}", e)
+                        emit(ClientUiState.Error(e.message ?: "Unknown error"))
+                    }
             }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                ClientUiState.Loading
+            )
 
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
     }
 
-    fun insertClient(client: Client) = viewModelScope.launch {
-        clientRepository.insertClient(client)
-    }
-
-    fun updateClient(client: Client) = viewModelScope.launch {
-        clientRepository.updateClient(client)
-    }
-
-    fun deleteClient(client: Client) = viewModelScope.launch {
-        clientRepository.deleteClient(client)
-    }
-
-    suspend fun getClientById(clientId: Int): Client? {
-        return clientRepository.getClientById(clientId)
-    }
-}
-
-class ClientsViewModelFactory(private val clientRepository: ClientRepository) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(ClientsViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return ClientsViewModel(clientRepository) as T
+    fun reload() {
+        viewModelScope.launch {
+            _refreshTrigger.emit(_refreshTrigger.value + 1)
         }
-        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+
+    suspend fun insertClient(client: Client): Boolean {
+        return try {
+            repository.insertClient(client)
+            reload()
+            true
+        } catch (e: Exception) {
+            Log.e("ClientsViewModel", "Insert error: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun updateClient(client: Client): Boolean {
+        return try {
+            repository.updateClient(client)
+            reload()
+            true
+        } catch (e: Exception) {
+            Log.e("ClientsViewModel", "Update error: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun deleteClient(client: Client): Boolean {
+        return try {
+            repository.deleteClient(client)
+            reload()
+            true
+        } catch (e: Exception) {
+            Log.e("ClientsViewModel", "Delete error: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun getClientById(id: Long): Client? {
+        return try {
+            repository.getClientById(id)
+        } catch (e: Exception) {
+            Log.e("ClientsViewModel", "GetById error: ${e.message}", e)
+            null
+        }
     }
 }

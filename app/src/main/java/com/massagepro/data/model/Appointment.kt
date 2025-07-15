@@ -1,17 +1,15 @@
 package com.massagepro.data.model
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
-@Entity(tableName = "appointments")
+@Serializable
 data class Appointment(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val clientId: Int,
-    val serviceId: Int,
-    val serviceName: String,
-    val serviceDuration: Int,
-    val servicePrice: Int, // ЗМІНЕНО: Тепер це Int (ціле число)
+    val id: Long = 0,           // ← было Int
+    val clientId: Long,         // ← было Int
+    val serviceId: Long,        // ← было Int
     val dateTime: Long,
-    val notes: String? = null,
-    val status: String = "Заплановано"
+    val serviceDuration: Int,
+    val servicePrice: Int,
+    val status: String,
+    val notes: String? = null
 )

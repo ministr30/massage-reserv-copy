@@ -1,15 +1,11 @@
 package com.massagepro // или ваш актуальный пакет
 
 import android.app.Application
-import com.massagepro.data.AppDatabase // Убедитесь, что это правильный путь к вашему AppDatabase
-// import androidx.room.Room // Больше не нужен прямой импорт Room здесь
+// import com.massagepro.data.AppDatabase // Удалено, так как Room больше не используется
 
 class App : Application() {
 
-    // ИЗМЕНЕНО: Теперь используем метод getDatabase() из AppDatabase
-    val database: AppDatabase by lazy {
-        AppDatabase.getDatabase(this) // Передаем this (Application context)
-    }
+    // Удалено: val database: AppDatabase by lazy { ... } – Room больше не нужен
 
     override fun onCreate() {
         super.onCreate()

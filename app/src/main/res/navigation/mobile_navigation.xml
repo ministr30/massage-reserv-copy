@@ -42,15 +42,16 @@
         tools:layout="@layout/fragment_statistics" />
 
     <fragment
-        android:id="@+id/addEditClientFragment"
-        android:name="com.massagepro.ui.clients.AddEditClientFragment"
-        android:label="@string/title_add_edit_client"
-        tools:layout="@layout/fragment_add_edit_client">
-        <argument
-            android:name="clientId"
-            app:argType="integer"
-            android:defaultValue="-1" />
-    </fragment>
+    android:id="@+id/addEditClientFragment"
+    android:name="com.massagepro.ui.clients.AddEditClientFragment"
+    android:label="@string/title_add_edit_client"
+    tools:layout="@layout/fragment_add_edit_client">
+    <argument
+        android:name="clientId"
+        app:argType="long"
+        android:defaultValue="-1L" />
+</fragment>
+
 
     <fragment
         android:id="@+id/addEditServiceFragment"
@@ -59,9 +60,10 @@
         tools:layout="@layout/fragment_add_edit_service">
         <argument
             android:name="serviceId"
-            app:argType="integer"
-            android:defaultValue="-1" />
+            app:argType="long"
+            android:defaultValue="-1L" />
     </fragment>
+
 
     <fragment
         android:id="@+id/addEditAppointmentFragment"
@@ -70,8 +72,9 @@
         tools:layout="@layout/fragment_add_edit_appointment">
         <argument
             android:name="appointmentId"
-            app:argType="integer"
-            android:defaultValue="-1" />
+            app:argType="long"
+            android:defaultValue="-1L" />
+
         <argument
             android:name="selectedStartTime"
             app:argType="long"

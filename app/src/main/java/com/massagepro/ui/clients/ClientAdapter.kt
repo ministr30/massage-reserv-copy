@@ -20,15 +20,14 @@ class ClientAdapter(
     }
 
     override fun onBindViewHolder(holder: ClientViewHolder, position: Int) {
-        val client = getItem(position)
-        holder.bind(client)
+        holder.bind(getItem(position))
     }
 
-    inner class ClientViewHolder(private val binding: ItemClientBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class ClientViewHolder(private val binding: ItemClientBinding) :
+        RecyclerView.ViewHolder(binding.root) {
         fun bind(client: Client) {
             binding.textViewClientName.text = client.name
             binding.textViewClientPhone.text = client.phone
-
             binding.root.setOnClickListener { onClientClick(client) }
             binding.imageButtonEditClient.setOnClickListener { onEditClick(client) }
             binding.imageButtonDeleteClient.setOnClickListener { onDeleteClick(client) }
@@ -36,12 +35,10 @@ class ClientAdapter(
     }
 
     private class ClientDiffCallback : DiffUtil.ItemCallback<Client>() {
-        override fun areItemsTheSame(oldItem: Client, newItem: Client): Boolean {
-            return oldItem.id == newItem.id
-        }
+        override fun areItemsTheSame(oldItem: Client, newItem: Client): Boolean =
+            oldItem.id == newItem.id
 
-        override fun areContentsTheSame(oldItem: Client, newItem: Client): Boolean {
-            return oldItem == newItem
-        }
+        override fun areContentsTheSame(oldItem: Client, newItem: Client): Boolean =
+            oldItem == newItem
     }
 }

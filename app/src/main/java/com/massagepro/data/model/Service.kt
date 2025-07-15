@@ -1,14 +1,12 @@
 package com.massagepro.data.model
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
-@Entity(tableName = "services")
+@Serializable
 data class Service(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    // val name: String, // Удалено поле name
-    val duration: Int, // Тривалість послуги в хвилинах
-    val basePrice: Int, // ЗМІНЕНО: Тепер це Int (ціле число)
-    val category: String = "", // Категория. Теперь это поле может служить и как имя.
-    val isActive: Boolean = true // Статус активности услуги
+    val id: Long? = null,
+    val category: String = "",
+    val duration: Int = 0,
+    val basePrice: Int = 0,
+    val description: String? = null
 )

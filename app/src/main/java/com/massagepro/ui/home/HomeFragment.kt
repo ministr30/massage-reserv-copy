@@ -15,7 +15,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.massagepro.App
 import com.massagepro.R
 import com.massagepro.data.model.Appointment
 import com.massagepro.data.model.AppointmentStatus
@@ -38,20 +37,12 @@ class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private val appointmentsViewModel: AppointmentsViewModel by viewModels {
-        val application = requireActivity().application as App
-        val database = application.database
-        val clientRepository = ClientRepository(database.clientDao())
-        val serviceRepository = ServiceRepository(database.serviceDao())
-        // 👇 --- ИСПРАВЛЕНИЕ ЗДЕСЬ --- 👇
-        val appointmentRepository = AppointmentRepository(database.appointmentDao())
-
         AppointmentsViewModelFactory(
-            application,
-            appointmentRepository,
-            clientRepository,
-            serviceRepository
+            requireActivity().application,
+            AppointmentRepository(),
+            ClientRepository(),
+            ServiceRepository()
         )
-        // 👆 --- КОНЕЦ ИСПРАВЛЕНИЯ --- 👆
     }
     private lateinit var timeSlotAdapter: TimeSlotAdapter
     private var selectedDate: Calendar = Calendar.getInstance()
@@ -93,7 +84,7 @@ class HomeFragment : Fragment() {
             onBookClick = { timeSlot ->
                 val action =
                     HomeFragmentDirections.actionNavigationHomeToAddEditAppointmentFragment(
-                        appointmentId = -1,
+                        appointmentId = -1L,
                         selectedStartTime = timeSlot.startTime.timeInMillis
                     )
                 findNavController().navigate(action)
@@ -260,11 +251,11 @@ class HomeFragment : Fragment() {
                         }
                     }
 
-                    3 -> {
+                    3 -> { // "Отметить как отмененное"
                         lifecycleScope.launch {
-                            appointmentsViewModel.updateAppointmentStatus(
-                                appointment.id,
-                                AppointmentStatus.CANCELED.statusValue
+                            appointmentsViewModel.updateAppointmentStatus( // Убедитесь, что здесь нет лишних слов
+                                appointment.id, // Первый аргумент - ID записи
+                                AppointmentStatus.CANCELED.statusValue // Второй аргумент - новый статус
                             )
                             Toast.makeText(
                                 requireContext(),

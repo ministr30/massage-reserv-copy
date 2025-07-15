@@ -1,5 +1,6 @@
 package com.massagepro.ui.appointments
 
+import android.app.AlertDialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -15,20 +16,17 @@ import androidx.navigation.fragment.navArgs
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
-import com.massagepro.App
 import com.massagepro.R
 import com.massagepro.data.model.Appointment
+import com.massagepro.data.model.AppointmentStatus
 import com.massagepro.data.model.Service
 import com.massagepro.data.repository.AppointmentRepository
 import com.massagepro.data.repository.ClientRepository
 import com.massagepro.data.repository.ServiceRepository
+import com.massagepro.databinding.FragmentAddEditAppointmentBinding
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
-import android.app.AlertDialog
-import com.massagepro.databinding.FragmentAddEditAppointmentBinding
-import com.massagepro.data.model.AppointmentStatus
+import java.util.*
 import java.util.concurrent.TimeUnit
 
 class AddEditAppointmentFragment : Fragment() {
@@ -37,29 +35,20 @@ class AddEditAppointmentFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: AppointmentsViewModel by viewModels {
-        val application = requireActivity().application as App
-        val database = application.database
-        val clientRepository = ClientRepository(database.clientDao())
-        val serviceRepository = ServiceRepository(database.serviceDao())
-        // 👇 --- ИСПРАВЛЕНИЕ ЗДЕСЬ --- 👇
-        val appointmentRepository = AppointmentRepository(database.appointmentDao())
-
         AppointmentsViewModelFactory(
-            application,
-            appointmentRepository,
-            clientRepository,
-            serviceRepository
+            requireActivity().application,
+            AppointmentRepository(),
+            ClientRepository(),
+            ServiceRepository()
         )
-        // 👆 --- КОНЕЦ ИСПРАВЛЕНИЯ --- 👆
     }
-
     private val args: AddEditAppointmentFragmentArgs by navArgs()
 
     private var selectedDateMillis: Long = 0L
     private var selectedHour: Int = 0
     private var selectedMinute: Int = 0
 
-    private var selectedClientId: Int? = null
+    private var selectedClientId: Long? = null
     private var selectedClientName: String? = null
     private var selectedService: Service? = null
     private var selectedNotes: String? = null
@@ -95,9 +84,9 @@ class AddEditAppointmentFragment : Fragment() {
         binding.buttonSaveAppointment.setOnClickListener { validateAndStartSaveProcess() }
 
         val appointmentId = args.appointmentId
-        if (appointmentId != -1) {
+        if (appointmentId != -1L) {
             lifecycleScope.launch {
-                viewModel.getAppointmentById(appointmentId)?.let { appointment ->
+                viewModel.getAppointmentById(appointmentId.toLong())?.let { appointment ->
                     selectedClientId = appointment.clientId
                     selectedService = viewModel.getServiceById(appointment.serviceId)
                     selectedNotes = appointment.notes
@@ -119,8 +108,8 @@ class AddEditAppointmentFragment : Fragment() {
                         (binding.autoCompleteTextClient as? AutoCompleteTextView)?.setText(client.name, false)
                     }
                     selectedService?.let { service ->
-                        val serviceDisplayString = "${service.category} - ${service.duration} хвилин (${service.basePrice} грн)"
-                        (binding.autoCompleteTextService as? AutoCompleteTextView)?.setText(serviceDisplayString, false)
+                        val display = "${service.category} - ${service.duration} хвилин (${service.basePrice} грн)"
+                        (binding.autoCompleteTextService as? AutoCompleteTextView)?.setText(display, false)
                     }
                 }
             }
@@ -130,18 +119,17 @@ class AddEditAppointmentFragment : Fragment() {
         }
     }
 
+    // region === UI helpers ===
     private fun setupClientAutoComplete() {
         lifecycleScope.launch {
             viewModel.allClients.observe(viewLifecycleOwner) { clients ->
-                val clientNames = clients.map { it.name }
-                val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, clientNames)
+                val names = clients.map { it.name }
+                val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, names)
                 (binding.autoCompleteTextClient as? AutoCompleteTextView)?.setAdapter(adapter)
-
-                (binding.autoCompleteTextClient as? AutoCompleteTextView)?.setOnItemClickListener { parent, _, position, _ ->
-                    val selectedClientNameFromList = parent.getItemAtPosition(position).toString()
-                    val client = clients.find { it.name == selectedClientNameFromList }
-                    selectedClientId = client?.id
-                    this@AddEditAppointmentFragment.selectedClientName = client?.name
+                (binding.autoCompleteTextClient as? AutoCompleteTextView)?.setOnItemClickListener { _, _, pos, _ ->
+                    val client = clients[pos]
+                    selectedClientId = client.id
+                    selectedClientName = client.name
                 }
             }
         }
@@ -150,14 +138,11 @@ class AddEditAppointmentFragment : Fragment() {
     private fun setupServiceAutoComplete() {
         lifecycleScope.launch {
             viewModel.allServices.observe(viewLifecycleOwner) { services ->
-                val serviceDisplayStrings = services.map { service ->
-                    "${service.category} - ${service.duration} хвилин (${service.basePrice} грн)"
-                }
-                val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, serviceDisplayStrings)
+                val displays = services.map { "${it.category} - ${it.duration} хвилин (${it.basePrice} грн)" }
+                val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, displays)
                 (binding.autoCompleteTextService as? AutoCompleteTextView)?.setAdapter(adapter)
-
-                (binding.autoCompleteTextService as? AutoCompleteTextView)?.setOnItemClickListener { _, _, position, _ ->
-                    selectedService = services[position]
+                (binding.autoCompleteTextService as? AutoCompleteTextView)?.setOnItemClickListener { _, _, pos, _ ->
+                    selectedService = services[pos]
                     binding.editTextDuration.setText(selectedService?.duration?.toString() ?: "")
                     binding.editTextPrice.setText(selectedService?.basePrice?.toString() ?: "")
                 }
@@ -173,46 +158,54 @@ class AddEditAppointmentFragment : Fragment() {
     }
 
     private fun showDatePicker() {
-        val datePicker = MaterialDatePicker.Builder.datePicker()
+        MaterialDatePicker.Builder.datePicker()
             .setTitleText(getString(R.string.select_date))
             .setSelection(selectedDateMillis)
             .build()
-        datePicker.addOnPositiveButtonClickListener { selection ->
-            selectedDateMillis = selection
-            updateDateAndTimeUI()
-        }
-        datePicker.show(parentFragmentManager, "date_picker")
+            .apply {
+                addOnPositiveButtonClickListener { selection ->
+                    selectedDateMillis = selection
+                    updateDateAndTimeUI()
+                }
+                show(parentFragmentManager, "date_picker")
+            }
     }
 
     private fun showTimePicker() {
-        val timePicker = MaterialTimePicker.Builder()
+        MaterialTimePicker.Builder()
             .setTimeFormat(TimeFormat.CLOCK_24H)
             .setHour(selectedHour)
             .setMinute(selectedMinute)
             .setTitleText(getString(R.string.select_time))
             .build()
-        timePicker.addOnPositiveButtonClickListener {
-            selectedHour = timePicker.hour
-            selectedMinute = timePicker.minute
-            updateDateAndTimeUI()
-        }
-        timePicker.show(parentFragmentManager, "time_picker")
+            .apply {
+                addOnPositiveButtonClickListener {
+                    selectedHour = hour
+                    selectedMinute = minute
+                    updateDateAndTimeUI()
+                }
+                show(parentFragmentManager, "time_picker")
+            }
     }
 
     private fun updateDateAndTimeUI() {
-        val calendar = Calendar.getInstance().apply {
-            timeInMillis = selectedDateMillis
-            set(Calendar.HOUR_OF_DAY, selectedHour)
-            set(Calendar.MINUTE, selectedMinute)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
-        binding.editTextDate.setText(dateFormat.format(calendar.time))
-        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-        binding.editTextTime.setText(timeFormat.format(calendar.time))
-    }
+        val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale("uk", "UA"))
+        val timeFormat = SimpleDateFormat("HH:mm", Locale("uk", "UA"))
+        val calendar = Calendar.getInstance().apply { timeInMillis = selectedDateMillis }
 
+        binding.editTextDate.setText(dateFormat.format(calendar.time))
+        binding.editTextTime.setText(
+            timeFormat.format(
+                Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, selectedHour)
+                    set(Calendar.MINUTE, selectedMinute)
+                }.time
+            )
+        )
+    }
+    // endregion
+
+    // region === Validation & save ===
     private fun validateAndStartSaveProcess() {
         val notes = binding.editTextNotes.text.toString().trim()
         val durationString = binding.editTextDuration.text.toString().trim()
@@ -238,8 +231,8 @@ class AddEditAppointmentFragment : Fragment() {
         }.timeInMillis
 
         lifecycleScope.launch {
-            val precedingAppointment = viewModel.getPrecedingAppointment(combinedDateTime)
-            if (precedingAppointment != null && (precedingAppointment.dateTime + TimeUnit.MINUTES.toMillis(precedingAppointment.serviceDuration.toLong())) == combinedDateTime) {
+            val preceding = viewModel.getPrecedingAppointment(combinedDateTime)
+            if (preceding != null && (preceding.dateTime + TimeUnit.MINUTES.toMillis(preceding.serviceDuration.toLong())) == combinedDateTime) {
                 showPreparationTimeDialog(combinedDateTime, duration, initialPrice, notes)
             } else {
                 checkConflictsAndSave(combinedDateTime, duration, initialPrice, notes)
@@ -264,9 +257,12 @@ class AddEditAppointmentFragment : Fragment() {
     private fun checkConflictsAndSave(dateTime: Long, duration: Int, price: Int, notes: String) {
         lifecycleScope.launch {
             val conflictEnd = dateTime + TimeUnit.MINUTES.toMillis(duration.toLong())
-            val conflictingAppointments = viewModel.getConflictingAppointments(dateTime, conflictEnd, args.appointmentId)
-
-            if (conflictingAppointments.isNotEmpty()) {
+            val conflicting = viewModel.getConflictingAppointments(
+                dateTime,
+                conflictEnd,
+                args.appointmentId.toLong()
+            )
+            if (conflicting.isNotEmpty()) {
                 val searchFrom = Calendar.getInstance().apply { timeInMillis = dateTime }
                 val nextSlot = viewModel.findNextAvailableSlot(duration, searchFrom)
                 if (nextSlot != null) {
@@ -287,14 +283,13 @@ class AddEditAppointmentFragment : Fragment() {
                 }
                 return@launch
             }
-
             checkSurchargeAndSave(dateTime, duration, price, notes)
         }
     }
 
     private fun checkSurchargeAndSave(dateTime: Long, duration: Int, price: Int, notes: String) {
-        val selectedCalendar = Calendar.getInstance().apply { timeInMillis = dateTime }
-        if (selectedCalendar.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+        val cal = Calendar.getInstance().apply { timeInMillis = dateTime }
+        if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
             AlertDialog.Builder(requireContext())
                 .setTitle(getString(R.string.weekend_surcharge_title))
                 .setMessage(getString(R.string.weekend_surcharge_message))
@@ -312,23 +307,18 @@ class AddEditAppointmentFragment : Fragment() {
 
     private fun saveAppointment(finalDateTime: Long, duration: Int, price: Int, notes: String) {
         lifecycleScope.launch {
-            val appointment = if (args.appointmentId == -1) {
-                Appointment(
-                    clientId = selectedClientId!!, serviceId = selectedService!!.id,
-                    serviceName = selectedService!!.category, serviceDuration = duration,
-                    servicePrice = price, dateTime = finalDateTime, notes = notes,
-                    status = AppointmentStatus.PLANNED.statusValue
-                )
-            } else {
-                Appointment(
-                    id = args.appointmentId, clientId = selectedClientId!!, serviceId = selectedService!!.id,
-                    serviceName = selectedService!!.category, serviceDuration = duration,
-                    servicePrice = price, dateTime = finalDateTime, notes = notes,
-                    status = currentAppointmentStatus
-                )
-            }
+            val appointment = Appointment(
+                id = if (args.appointmentId == -1L) 0L else args.appointmentId.toLong(),
+                clientId = selectedClientId!!,
+                serviceId = selectedService!!.id!!,
+                serviceDuration = duration,
+                servicePrice = price,
+                dateTime = finalDateTime,
+                notes = notes,
+                status = currentAppointmentStatus
+            )
 
-            if (args.appointmentId == -1) {
+            if (args.appointmentId == -1L) {
                 viewModel.insertAppointment(appointment)
                 Toast.makeText(requireContext(), getString(R.string.appointment_added_toast), Toast.LENGTH_SHORT).show()
             } else {
@@ -338,6 +328,7 @@ class AddEditAppointmentFragment : Fragment() {
             findNavController().popBackStack()
         }
     }
+    // endregion
 
     override fun onDestroyView() {
         super.onDestroyView()

@@ -9,7 +9,6 @@ import com.massagepro.data.model.Service
 import com.massagepro.databinding.ItemServiceBinding
 import com.massagepro.R
 
-
 class ServiceAdapter(
     private val onServiceClick: (Service) -> Unit,
     private val onEditClick: (Service) -> Unit,
@@ -29,8 +28,13 @@ class ServiceAdapter(
     inner class ServiceViewHolder(private val binding: ItemServiceBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(service: Service, onServiceClick: (Service) -> Unit, onEditClick: (Service) -> Unit, onDeleteClick: (Service) -> Unit) {
-            binding.textViewServiceName.text = service.category // Используем категорию вместо имени
+        fun bind(
+            service: Service,
+            onServiceClick: (Service) -> Unit,
+            onEditClick: (Service) -> Unit,
+            onDeleteClick: (Service) -> Unit
+        ) {
+            binding.textViewServiceName.text = service.category
 
             binding.textViewServiceDetails.text = binding.root.context.getString(
                 R.string.service_details_format,
@@ -45,16 +49,12 @@ class ServiceAdapter(
     }
 
     private class ServiceDiffCallback : DiffUtil.ItemCallback<Service>() {
-        override fun areItemsTheSame(oldItem: Service, newItem: Service): Boolean {
-            return oldItem.id == newItem.id
-        }
+        override fun areItemsTheSame(oldItem: Service, newItem: Service): Boolean =
+            oldItem.id == newItem.id
 
-        override fun areContentsTheSame(oldItem: Service, newItem: Service): Boolean {
-            // Удалено сравнение по name
-            return oldItem.duration == newItem.duration &&
-                    oldItem.basePrice == newItem.basePrice &&
-                    oldItem.category == newItem.category &&
-                    oldItem.isActive == newItem.isActive
-        }
+        override fun areContentsTheSame(oldItem: Service, newItem: Service): Boolean =
+            oldItem.category == newItem.category &&
+                    oldItem.duration == newItem.duration &&
+                    oldItem.basePrice == newItem.basePrice
     }
 }

@@ -1,12 +1,14 @@
 package com.massagepro.data.model
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.EncodeDefault.Mode
 
-@Entity(tableName = "clients")
+@Serializable
 data class Client(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @EncodeDefault(Mode.NEVER)
+    val id: Long? = null,
     val name: String,
-    val phone: String?,
-    val notes: String = "" // Обов'язково повинно бути String = ""
+    val phone: String? = null,
+    val notes: String? = null
 )

@@ -1,14 +1,9 @@
 package com.massagepro.ui.statistics
 
-import android.app.AlertDialog
 import android.app.DatePickerDialog
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.*
 import android.widget.Toast
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -25,18 +20,12 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.highlight.Highlight
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener
 import com.google.android.material.chip.ChipGroup
-import com.massagepro.App
 import com.massagepro.R
 import com.massagepro.data.repository.AppointmentRepository
 import com.massagepro.data.repository.ClientRepository
 import com.massagepro.data.repository.ServiceRepository
 import com.massagepro.databinding.FragmentStatisticsBinding
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -45,44 +34,28 @@ class StatisticsFragment : Fragment() {
 
     private var _binding: FragmentStatisticsBinding? = null
     private val binding get() = _binding!!
-    private val viewModel: StatisticsViewModel by viewModels {
-        val database = (requireActivity().application as App).database
-        val clientRepository = ClientRepository(database.clientDao())
-        val serviceRepository = ServiceRepository(database.serviceDao())
-        val appointmentRepository = AppointmentRepository(database.appointmentDao())
 
+    private val viewModel: StatisticsViewModel by viewModels {
         StatisticsViewModelFactory(
-            appointmentRepository,
-            clientRepository,
-            serviceRepository
+            AppointmentRepository(),
+            ClientRepository(),
+            ServiceRepository()
         )
     }
 
     private var startDate: Calendar = Calendar.getInstance()
     private var endDate: Calendar = Calendar.getInstance()
-    private lateinit var backupLauncher: ActivityResultLauncher<String>
-    private lateinit var restoreLauncher: ActivityResultLauncher<Array<String>>
+
     private lateinit var barChartAppointments: BarChart
     private lateinit var pieChartRevenueByCategory: PieChart
     private lateinit var chipGroupPeriod: ChipGroup
+
     private var currentGrouping: GroupingInterval = GroupingInterval.MONTH
     private var currentPeriodType: PeriodType = PeriodType.THREE_MONTHS
     private var lastDrillDown: Pair<PeriodType, GroupingInterval>? = null
     private var lastDrillDownDates: Pair<Calendar, Calendar>? = null
     private var barChartLabels: List<String> = emptyList()
     private val currencyFormat = DecimalFormat("#,##0")
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        backupLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/x-sqlite3")) { uri: Uri? ->
-            uri?.let {
-                lifecycleScope.launch(Dispatchers.IO) { backupDatabase(it) }
-            }
-        }
-        restoreLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-            uri?.let { showRestoreConfirmationDialog(it) }
-        }
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -95,34 +68,32 @@ class StatisticsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(v.paddingLeft, systemBars.top, v.paddingRight, v.paddingBottom)
             insets
         }
+
         barChartAppointments = binding.barChartAppointments
         pieChartRevenueByCategory = binding.pieChartRevenueByCategory
         chipGroupPeriod = binding.chipGroupPeriod
 
-        setupActionButtons()
         setupCharts()
         setupChipGroup()
         setupCalendarButton()
-        updatePeriodInfo()
+        updateDateDisplay()
         observeViewModel()
         setPeriodAndGrouping(PeriodType.THREE_MONTHS)
     }
 
     private fun setupCalendarButton() {
-        binding.buttonCalendar.setOnClickListener {
-            showCustomDateRangeDialog()
-        }
+        binding.buttonCalendar.setOnClickListener { showCustomDateRangeDialog() }
     }
 
-    @Suppress("DEPRECATION") // Эта аннотация подавляет предупреждение об устаревшем методе
+    @Suppress("DEPRECATION")
     private fun setupChipGroup() {
         chipGroupPeriod.setOnCheckedChangeListener { _, checkedId ->
-
             when (checkedId) {
                 R.id.chip_week -> setPeriodAndGrouping(PeriodType.WEEK)
                 R.id.chip_month -> setPeriodAndGrouping(PeriodType.MONTH)
@@ -204,16 +175,13 @@ class StatisticsFragment : Fragment() {
                 endDate = Calendar.getInstance().setToEndOfDay()
                 currentGrouping = GroupingInterval.YEAR
             }
-            PeriodType.CUSTOM -> {
-                // For custom period, startDate/endDate are set manually
-            }
+            PeriodType.CUSTOM -> {}
         }
         updateDateDisplay()
         generateStatistics()
     }
 
     private fun showCustomDateRangeDialog() {
-
         val start = startDate.clone() as Calendar
         val end = endDate.clone() as Calendar
 
@@ -236,131 +204,56 @@ class StatisticsFragment : Fragment() {
         return (diff / (1000 * 60 * 60 * 24)).toInt()
     }
 
-    private fun setupActionButtons() {
-        binding.buttonBackup.setOnClickListener {
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-            val fileName = "MassagePRO_backup_$timeStamp.db"
-            backupLauncher.launch(fileName)
-        }
-        binding.buttonRestore.setOnClickListener {
-            restoreLauncher.launch(arrayOf("*/*"))
-        }
-    }
-
-    private suspend fun backupDatabase(destinationUri: Uri) {
-        val app = requireActivity().application as App
-        val database = app.database
-        val dbFile = requireContext().getDatabasePath(database.openHelper.databaseName)
-        try {
-            if (database.isOpen) {
-                database.query("PRAGMA wal_checkpoint(FULL);", emptyArray()).use { it.moveToFirst() }
-            }
-            requireContext().contentResolver.openOutputStream(destinationUri)?.use { outputStream ->
-                FileInputStream(dbFile).use { inputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            }
-            withContext(Dispatchers.Main) {
-                Toast.makeText(requireContext(), getString(R.string.backup_success), Toast.LENGTH_LONG).show()
-            }
-        } catch (e: Exception) {
-            withContext(Dispatchers.Main) {
-                val errorMessage = e.message ?: "Unknown error"
-                Toast.makeText(requireContext(), getString(R.string.backup_error, errorMessage), Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    private fun showRestoreConfirmationDialog(backupUri: Uri) {
-        AlertDialog.Builder(requireContext())
-            .setTitle(getString(R.string.restore_confirmation_title))
-            .setMessage(getString(R.string.restore_confirmation_message))
-            .setPositiveButton(getString(R.string.restore_action_confirm)) { _, _ ->
-                lifecycleScope.launch(Dispatchers.IO) {
-                    restoreDatabase(backupUri)
-                }
-            }
-            .setNegativeButton(getString(R.string.cancel_button_text), null)
-            .show()
-    }
-
-    private suspend fun restoreDatabase(backupUri: Uri) {
-        val app = requireActivity().application as App
-        val dbPath = requireContext().getDatabasePath(app.database.openHelper.databaseName).absolutePath
-        val dbFile = File(dbPath)
-        val walFile = File("$dbPath-wal")
-        val shmFile = File("$dbPath-shm")
-        if (app.database.isOpen) app.database.close()
-        if (walFile.exists()) walFile.delete()
-        if (shmFile.exists()) shmFile.delete()
-        try {
-            requireContext().contentResolver.openInputStream(backupUri)?.use { inputStream ->
-                FileOutputStream(dbFile).use { outputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            }
-            withContext(Dispatchers.Main) {
-                Toast.makeText(requireContext(), getString(R.string.restore_success), Toast.LENGTH_LONG).show()
-                restartApp()
-            }
-        } catch (e: Exception) {
-            withContext(Dispatchers.Main) {
-                Toast.makeText(requireContext(), getString(R.string.restore_error, e.message), Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    private fun restartApp() {
-        val context = requireActivity().applicationContext
-        val packageManager = context.packageManager
-        val intent = packageManager.getLaunchIntentForPackage(context.packageName)
-        val componentName = intent!!.component
-        val mainIntent = Intent.makeRestartActivityTask(componentName)
-        context.startActivity(mainIntent)
-        kotlin.system.exitProcess(0)
-    }
-
     private fun setupCharts() {
         val themeTextColor = getThemeTextColor()
-        barChartAppointments.description.isEnabled = false
-        barChartAppointments.setDrawGridBackground(false)
-        barChartAppointments.setDrawBarShadow(false)
-        barChartAppointments.setPinchZoom(true)
-        barChartAppointments.isDoubleTapToZoomEnabled = false
-        barChartAppointments.legend.isEnabled = false
-        val xAxisAppointments = barChartAppointments.xAxis
-        xAxisAppointments.position = XAxis.XAxisPosition.BOTTOM
-        xAxisAppointments.setDrawGridLines(false)
-        xAxisAppointments.setDrawLabels(true)
-        xAxisAppointments.granularity = 1f
-        xAxisAppointments.setCenterAxisLabels(false)
-        xAxisAppointments.setAvoidFirstLastClipping(true)
-        xAxisAppointments.textSize = 10f
-        xAxisAppointments.labelRotationAngle = -45f
-        xAxisAppointments.textColor = themeTextColor
-        barChartAppointments.axisRight.isEnabled = false
-        val yAxisAppointments = barChartAppointments.axisLeft
-        yAxisAppointments.setDrawGridLines(true)
-        yAxisAppointments.granularity = 1f
-        yAxisAppointments.axisMinimum = 0f
-        yAxisAppointments.textColor = themeTextColor
-        pieChartRevenueByCategory.description.isEnabled = false
-        pieChartRevenueByCategory.setUsePercentValues(true)
-        pieChartRevenueByCategory.setEntryLabelColor(themeTextColor)
-        pieChartRevenueByCategory.setEntryLabelTextSize(12f)
-        pieChartRevenueByCategory.setDrawEntryLabels(false)
-        pieChartRevenueByCategory.isHighlightPerTapEnabled = true
-        pieChartRevenueByCategory.animateY(1400)
-        val pieLegend = pieChartRevenueByCategory.legend
-        pieLegend.verticalAlignment = Legend.LegendVerticalAlignment.TOP
-        pieLegend.horizontalAlignment = Legend.LegendHorizontalAlignment.LEFT
-        pieLegend.orientation = Legend.LegendOrientation.VERTICAL
-        pieLegend.setDrawInside(false)
-        pieLegend.xEntrySpace = 7f
-        pieLegend.yEntrySpace = 5f
-        pieLegend.yOffset = 0f
-        pieLegend.textSize = 12f
-        pieLegend.textColor = themeTextColor
+
+        barChartAppointments.apply {
+            description.isEnabled = false
+            setDrawGridBackground(false)
+            setDrawBarShadow(false)
+            setPinchZoom(true)
+            isDoubleTapToZoomEnabled = false
+            legend.isEnabled = false
+            xAxis.apply {
+                position = XAxis.XAxisPosition.BOTTOM
+                setDrawGridLines(false)
+                setDrawLabels(true)
+                granularity = 1f
+                setCenterAxisLabels(false)
+                setAvoidFirstLastClipping(true)
+                textSize = 10f
+                labelRotationAngle = -45f
+                textColor = themeTextColor
+            }
+            axisRight.isEnabled = false
+            axisLeft.apply {
+                setDrawGridLines(true)
+                granularity = 1f
+                axisMinimum = 0f
+                textColor = themeTextColor
+            }
+        }
+
+        pieChartRevenueByCategory.apply {
+            description.isEnabled = false
+            setUsePercentValues(true)
+            setEntryLabelColor(themeTextColor)
+            setEntryLabelTextSize(12f)
+            setDrawEntryLabels(false)
+            isHighlightPerTapEnabled = true
+            animateY(1400)
+            legend.apply {
+                verticalAlignment = Legend.LegendVerticalAlignment.TOP
+                horizontalAlignment = Legend.LegendHorizontalAlignment.LEFT
+                orientation = Legend.LegendOrientation.VERTICAL
+                setDrawInside(false)
+                xEntrySpace = 7f
+                yEntrySpace = 5f
+                yOffset = 0f
+                textSize = 12f
+                textColor = themeTextColor
+            }
+        }
     }
 
     private fun getThemeTextColor(): Int {
@@ -370,10 +263,6 @@ class StatisticsFragment : Fragment() {
     }
 
     private fun updateDateDisplay() {
-        updatePeriodInfo()
-    }
-
-    private fun updatePeriodInfo() {
         val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
         val groupingText = when (currentGrouping) {
             GroupingInterval.DAY -> "дням"
@@ -393,25 +282,32 @@ class StatisticsFragment : Fragment() {
     private fun observeViewModel() {
         var currentAppointments = 0
         var currentRevenue = 0
+
         viewModel.totalAppointments.observe(viewLifecycleOwner) { appointments ->
             currentAppointments = appointments
             binding.textViewTotalAppointments.text = getString(R.string.total_appointments_prefix, appointments)
             updateAverageCheck(currentAppointments, currentRevenue)
         }
+
         viewModel.totalRevenue.observe(viewLifecycleOwner) { revenue ->
             currentRevenue = revenue
-            binding.textViewTotalRevenueStats.text = getString(R.string.total_revenue_prefix_stats, currencyFormat.format(revenue))
+            binding.textViewTotalRevenueStats.text =
+                getString(R.string.total_revenue_prefix_stats, currencyFormat.format(revenue))
             updateAverageCheck(currentAppointments, currentRevenue)
         }
+
         viewModel.mostPopularService.observe(viewLifecycleOwner) {
             binding.textViewMostPopularService.text = getString(R.string.most_popular_service_prefix, it)
         }
+
         viewModel.mostActiveClient.observe(viewLifecycleOwner) {
             binding.textViewMostActiveClient.text = getString(R.string.most_active_client_prefix, it)
         }
+
         viewModel.appointmentsByDate.observe(viewLifecycleOwner) { data ->
             updateBarChartAppointments(data)
         }
+
         viewModel.revenueByCategory.observe(viewLifecycleOwner) { data ->
             updatePieChartRevenueByCategory(data)
         }
@@ -441,61 +337,60 @@ class StatisticsFragment : Fragment() {
         if (data.isEmpty()) {
             barChartAppointments.visibility = View.GONE
             binding.textViewNoBarChartData.visibility = View.VISIBLE
-        } else {
-            barChartAppointments.visibility = View.VISIBLE
-            binding.textViewNoBarChartData.visibility = View.GONE
-            val entries = ArrayList<BarEntry>()
-            val labels = ArrayList<String>()
-            var i = 0f
-            val sortedData = data.entries.sortedBy {
-                when (currentGrouping) {
-                    GroupingInterval.ALL_TIME -> 0L
-                    GroupingInterval.YEAR -> SimpleDateFormat("yyyy", Locale.getDefault()).parse(it.key)?.time ?: 0L
-                    GroupingInterval.MONTH -> SimpleDateFormat("yyyy-MM", Locale.getDefault()).parse(it.key)?.time ?: 0L
-                    else -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(it.key)?.time ?: 0L
-                }
+            return
+        }
+
+        barChartAppointments.visibility = View.VISIBLE
+        binding.textViewNoBarChartData.visibility = View.GONE
+
+        val entries = ArrayList<BarEntry>()
+        val labels = ArrayList<String>()
+        var index = 0f
+
+        val sortedData = data.entries.sortedBy {
+            when (currentGrouping) {
+                GroupingInterval.ALL_TIME -> 0L
+                GroupingInterval.YEAR -> SimpleDateFormat("yyyy", Locale.getDefault()).parse(it.key)?.time ?: 0L
+                GroupingInterval.MONTH -> SimpleDateFormat("yyyy-MM", Locale.getDefault()).parse(it.key)?.time ?: 0L
+                else -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(it.key)?.time ?: 0L
             }
-            sortedData.forEach { (date, count) ->
-                entries.add(BarEntry(i, count.toFloat()))
-                val formattedLabel = when (currentGrouping) {
-                    GroupingInterval.DAY -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(date)?.let {
-                        SimpleDateFormat("dd.MM", Locale.getDefault()).format(it)
-                    } ?: date
-                    GroupingInterval.WEEK -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(date)?.let {
-                        SimpleDateFormat("dd.MM", Locale.getDefault()).format(it)
-                    } ?: date
-                    GroupingInterval.MONTH -> SimpleDateFormat("yyyy-MM", Locale.getDefault()).parse(date)?.let {
-                        SimpleDateFormat("MM.yyyy", Locale.getDefault()).format(it)
-                    } ?: date
-                    GroupingInterval.YEAR -> date
-                    GroupingInterval.ALL_TIME -> "Всього"
-                }
-                labels.add(formattedLabel)
-                i++
+        }
+
+        sortedData.forEach { (date, count) ->
+            entries.add(BarEntry(index, count.toFloat()))
+            val formattedLabel = when (currentGrouping) {
+                GroupingInterval.DAY -> SimpleDateFormat("dd.MM", Locale.getDefault()).format(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(date)!!)
+                GroupingInterval.WEEK -> SimpleDateFormat("dd.MM", Locale.getDefault()).format(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(date)!!)
+                GroupingInterval.MONTH -> SimpleDateFormat("MM.yyyy", Locale.getDefault()).format(SimpleDateFormat("yyyy-MM", Locale.getDefault()).parse(date)!!)
+                GroupingInterval.YEAR -> date
+                GroupingInterval.ALL_TIME -> "Всього"
             }
-            barChartLabels = labels
-            val dataSet = BarDataSet(entries, "Кількість записів")
-            dataSet.color = ContextCompat.getColor(requireContext(), R.color.blue_500)
-            dataSet.valueTextColor = themeTextColor
-            dataSet.valueTextSize = 10f
-            val barData = BarData(dataSet)
-            barData.barWidth = 0.9f
-            barChartAppointments.data = barData
-            barChartAppointments.xAxis.valueFormatter = IndexAxisValueFormatter(labels)
-            val maxLabels = when {
-                labels.size <= 5 -> labels.size
-                labels.size <= 10 -> 5
-                labels.size <= 20 -> 7
-                else -> 10
-            }
-            barChartAppointments.xAxis.labelCount = maxLabels
-            barChartAppointments.xAxis.setCenterAxisLabels(false)
-            barChartAppointments.invalidate()
-            barChartAppointments.animateY(1000)
-            barChartAppointments.setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
+            labels.add(formattedLabel)
+            index++
+        }
+
+        barChartLabels = labels
+
+        val dataSet = BarDataSet(entries, "Кількість записів").apply {
+            color = ContextCompat.getColor(requireContext(), R.color.blue_500)
+            valueTextColor = themeTextColor
+            valueTextSize = 10f
+        }
+
+        val barData = BarData(dataSet).apply {
+            barWidth = 0.9f
+        }
+
+        barChartAppointments.apply {
+            setData(barData)
+            xAxis.valueFormatter = IndexAxisValueFormatter(labels)
+            xAxis.labelCount = labels.size.coerceAtMost(10)
+            invalidate()
+            animateY(1000)
+            setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
-                    val index = e?.x?.toInt() ?: return
-                    val label = barChartLabels.getOrNull(index) ?: return
+                    val i = e?.x?.toInt() ?: return
+                    val label = barChartLabels.getOrNull(i) ?: return
                     openDrillDownForPeriod(label)
                 }
                 override fun onNothingSelected() {}
@@ -508,85 +403,70 @@ class StatisticsFragment : Fragment() {
         if (data.isEmpty()) {
             pieChartRevenueByCategory.visibility = View.GONE
             binding.textViewNoPieChartData.visibility = View.VISIBLE
-        } else {
-            pieChartRevenueByCategory.visibility = View.VISIBLE
-            binding.textViewNoPieChartData.visibility = View.GONE
+            return
+        }
 
-            val entries = ArrayList<PieEntry>()
-            for ((category, revenue) in data) {
-                entries.add(PieEntry(revenue.toFloat(), category))
+        pieChartRevenueByCategory.visibility = View.VISIBLE
+        binding.textViewNoPieChartData.visibility = View.GONE
+
+        val entries = data.map { (category, revenue) ->
+            PieEntry(revenue.toFloat(), category)
+        }
+
+        val colors = listOf(
+            ContextCompat.getColor(requireContext(), R.color.blue_500),
+            ContextCompat.getColor(requireContext(), R.color.teal_700),
+            ContextCompat.getColor(requireContext(), R.color.purple_500),
+            ContextCompat.getColor(requireContext(), R.color.colorBookedSlot),
+            ContextCompat.getColor(requireContext(), R.color.purple_200),
+            ContextCompat.getColor(requireContext(), R.color.teal_200),
+            ContextCompat.getColor(requireContext(), R.color.purple_700)
+        )
+
+        val dataSet = PieDataSet(entries, "").apply {
+            sliceSpace = 2f
+            selectionShift = 5f
+            this.colors = colors
+            valueTextColor = themeTextColor
+            valueTextSize = 12f
+            valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String = "%.1f%%".format(value)
             }
+        }
 
-            val dataSet = PieDataSet(entries, "")
-            dataSet.sliceSpace = 2f
-            dataSet.selectionShift = 5f
-
-            val colors = ArrayList<Int>()
-            val presetColors = listOf(
-                ContextCompat.getColor(requireContext(), R.color.blue_500),
-                ContextCompat.getColor(requireContext(), R.color.teal_700),
-                ContextCompat.getColor(requireContext(), R.color.purple_500),
-                ContextCompat.getColor(requireContext(), R.color.colorBookedSlot),
-                ContextCompat.getColor(requireContext(), R.color.purple_200),
-                ContextCompat.getColor(requireContext(), R.color.teal_200),
-                ContextCompat.getColor(requireContext(), R.color.purple_700)
-            )
-            colors.addAll(presetColors)
-            dataSet.colors = colors
-
-            dataSet.valueTextColor = themeTextColor
-            dataSet.valueTextSize = 12f
-            dataSet.valueFormatter = object : ValueFormatter() {
-                override fun getFormattedValue(value: Float): String {
-                    return "%.1f%%".format(value)
-                }
-            }
-
-            val pieData = PieData(dataSet)
-            pieChartRevenueByCategory.data = pieData
-            pieChartRevenueByCategory.legend.isEnabled = true // Включаем автоматическую легенду
-
-            pieChartRevenueByCategory.invalidate()
-            pieChartRevenueByCategory.animateY(1400)
+        pieChartRevenueByCategory.apply {
+            setData(PieData(dataSet))
+            legend.isEnabled = true
+            invalidate()
+            animateY(1400)
         }
     }
 
-    // НОВЫЙ, ПРАВИЛЬНЫЙ КОД
     private fun openDrillDownForPeriod(label: String) {
-        lastDrillDown = Pair(currentPeriodType, currentGrouping)
-        lastDrillDownDates = Pair(startDate.clone() as Calendar, endDate.clone() as Calendar)
+        lastDrillDown = currentPeriodType to currentGrouping
+        lastDrillDownDates = startDate.clone() as Calendar to endDate.clone() as Calendar
+
         try {
-            when (currentGrouping) {
-                GroupingInterval.MONTH -> {
-                    val sdf = SimpleDateFormat("MM.yyyy", Locale.getDefault())
-                    val parsed = sdf.parse(label)
-                    val cal = Calendar.getInstance().apply { time = parsed!! }
-                    cal.set(Calendar.DAY_OF_MONTH, 1)
-                    startDate = cal.clone() as Calendar
-                    endDate = (cal.clone() as Calendar).apply {
-                        set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
-                        setToEndOfDay()
-                    }
-                    currentGrouping = GroupingInterval.DAY
-                    updateDateDisplay()
-                    generateStatistics()
-                    showBackButtonForDrillDown()
+            if (currentGrouping == GroupingInterval.MONTH) {
+                val sdf = SimpleDateFormat("MM.yyyy", Locale.getDefault())
+                val cal = Calendar.getInstance().apply {
+                    time = sdf.parse(label)!!
+                    set(Calendar.DAY_OF_MONTH, 1)
                 }
-                else -> {
-                    // Ничего не делаем для других интервалов
+                startDate = cal.clone() as Calendar
+                endDate = (cal.clone() as Calendar).apply {
+                    set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+                    setToEndOfDay()
                 }
+                currentGrouping = GroupingInterval.DAY
+                updateDateDisplay()
+                generateStatistics()
+                binding.buttonBackDrilldown.visibility = View.VISIBLE
+                binding.buttonBackDrilldown.setOnClickListener { restoreDrillDown() }
             }
         } catch (e: Exception) {
-            // Теперь мы не игнорируем ошибку, а выводим её в лог
             e.printStackTrace()
-            // Можно также показать сообщение пользователю, если это необходимо
-            // Toast.makeText(requireContext(), "Помилка обробки дати", Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun showBackButtonForDrillDown() {
-        binding.buttonBackDrilldown.visibility = View.VISIBLE
-        binding.buttonBackDrilldown.setOnClickListener { restoreDrillDown() }
     }
 
     private fun restoreDrillDown() {
@@ -604,27 +484,23 @@ class StatisticsFragment : Fragment() {
     }
 
     private fun generateStatistics() {
-        if (currentGrouping == GroupingInterval.ALL_TIME) {
-            viewModel.generateStatistics(Date(0), Date(), currentGrouping)
-        } else {
-            viewModel.generateStatistics(startDate.time, endDate.time, currentGrouping)
-        }
+        val from = if (currentGrouping == GroupingInterval.ALL_TIME) Date(0) else startDate.time
+        val to = endDate.time
+        viewModel.generateStatistics(from, to, currentGrouping)
     }
 
-    private fun Calendar.setToStartOfDay(): Calendar {
+    private fun Calendar.setToStartOfDay(): Calendar = apply {
         set(Calendar.HOUR_OF_DAY, 0)
         set(Calendar.MINUTE, 0)
         set(Calendar.SECOND, 0)
         set(Calendar.MILLISECOND, 0)
-        return this
     }
 
-    private fun Calendar.setToEndOfDay(): Calendar {
+    private fun Calendar.setToEndOfDay(): Calendar = apply {
         set(Calendar.HOUR_OF_DAY, 23)
         set(Calendar.MINUTE, 59)
         set(Calendar.SECOND, 59)
         set(Calendar.MILLISECOND, 999)
-        return this
     }
 
     override fun onDestroyView() {

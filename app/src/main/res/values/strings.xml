@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Massage_PRO</string>
+    <string name="service_fields_empty_error">Заповніть всі поля</string>
+    <string name="filter_category_hint">Фильтр по категории</string>
+    <string name="service_failed_toast">Помилка при збереженні</string>
 
     <string name="title_home">Головна</string>
     <string name="title_clients">Клієнти</string>

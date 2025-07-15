@@ -1,32 +1,58 @@
 package com.massagepro.data.repository
 
-import com.massagepro.data.dao.ClientDao
 import com.massagepro.data.model.Client
+import com.massagepro.data.network.SupabaseClient
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-class ClientRepository(private val clientDao: ClientDao) {
 
-    fun getAllClients(): Flow<List<Client>> {
-        return clientDao.getAllClients()
+
+class ClientRepository {
+
+    private val postgrest = SupabaseClient.client.postgrest["Clients"]
+
+    fun getAllClients(): Flow<List<Client>> = flow {
+        emit(postgrest.select().decodeList<Client>())
     }
 
-    suspend fun insertClient(client: Client) {
-        clientDao.insertClient(client)
+    suspend fun insertClient(client: Client) = withContext(Dispatchers.IO) {
+        SupabaseClient.client
+            .postgrest["Clients"]
+            .insert(client)
     }
+
+
+
 
     suspend fun updateClient(client: Client) {
-        clientDao.updateClient(client)
+        postgrest.update({
+            set("name", client.name)
+            set("phone", client.phone)
+            set("notes", client.notes)
+        }) {
+            filter { eq("id", client.id!!) }
+        }
     }
 
     suspend fun deleteClient(client: Client) {
-        clientDao.deleteClient(client)
+        postgrest.delete { filter { eq("id", client.id!!) } }
     }
 
-    suspend fun getClientById(clientId: Int): Client? {
-        return clientDao.getClientById(clientId)
-    }
+    suspend fun getClientById(clientId: Long): Client? =
+        postgrest.select { filter { eq("id", clientId) } }.decodeSingleOrNull<Client>()
 
-    fun searchClients(query: String): Flow<List<Client>> {
-        return clientDao.searchClients(query)
+    fun searchClients(query: String): Flow<List<Client>> = flow {
+        val nameResults = postgrest.select {
+            filter { ilike("name", "%$query%") }
+        }.decodeList<Client>()
+
+        val phoneResults = postgrest.select {
+            filter { ilike("phone", "%$query%") }
+        }.decodeList<Client>()
+
+        emit((nameResults + phoneResults).distinctBy { it.id })
     }
 }

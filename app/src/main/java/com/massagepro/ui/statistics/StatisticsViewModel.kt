@@ -52,8 +52,8 @@ class StatisticsViewModel(
                 val completedStatus = AppointmentStatus.COMPLETED.statusValue
 
                 if (groupingInterval == GroupingInterval.ALL_TIME) {
-                    allAppointments = appointmentRepository.getAllAppointments(completedStatus).firstOrNull() ?: emptyList()
                     appointmentsWithDetails = appointmentRepository.getAppointmentsWithClientAndService(completedStatus).firstOrNull() ?: emptyList()
+                    allAppointments = appointmentsWithDetails.map { it.appointment }
                 } else {
                     appointmentsWithDetails = appointmentRepository.getAppointmentsForDay(
                         startDate.time,
